@@ -1,0 +1,13 @@
+[
+  {
+    "Name": "AppTest1",
+    "AppId": "cac42381-95c5-481f-8e23-981a18e5db0b",
+    "InternalId": "0003f34c-83e9-4e9f-9335-735962090e2f",
+    "Secrets": [
+      "@{customKeyIdentifier=32A45403B69F66270D6599D0018913FA401F2F2C; displayName=CN=test.local; endDateTime=10/20/2024 23:25:31; key=MIIDGzCCAgOgAwIBAgIQFEduLiU7VI1KJOCb5B4EGzANBgkqhkiG9wR/U3Shxt9/6rya7jC5NnAStmqcbBii7b6Sm+rT14/lqAyz20jv+5okyiGfbc5nQpa0W1p8GdjZDFQiQqTUNR6fpd41Q0+/8PwFcvfJVaR0VJWzIncS/Plkkg==; keyId=123def42-4162-477a-954f-f273bd00cb26; startDateTime=10/20/2023 23:05:31; type=AsymmetricX509Cert; usage=Verify}"
+    ],
+    "Certs": [
+      "@{customKeyIdentifier=; displayName=s1; endDateTime=10/24/2023 05:00:00; hint=ARv; keyId=83a8c19b-52e9-433a-aae7-7cdf09e39955; secretText=; startDateTime=10/23/2023 18:06:52}"
+    ]
+  }
+]

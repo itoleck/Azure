@@ -1,0 +1,57 @@
+{
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "workbookDisplayName": {
+        "type": "string",
+        "defaultValue": "[concat('MyWorkbook', uniqueString(subscription().subscriptionId))]",
+        "metadata": {
+          "description": "The friendly name for the workbook that is used in the Gallery or Saved List.  This name must be unique within a resource group."
+        }
+      },
+      "workbookType": {
+        "type": "string",
+        "defaultValue": "workbook",
+        "metadata": {
+          "description": "The gallery that the workbook will been shown under. Supported values include workbook, tsg, etc. Usually, this is 'workbook'"
+        }
+      },
+      "workbookSourceId": {
+        "type": "string",
+        "defaultValue": "Azure Monitor",
+        "metadata": {
+          "description": "The id of resource instance to which the workbook will be associated"
+        }
+      },
+      "workbookId": {
+        "type": "string",
+        "defaultValue": "[newGuid()]",
+        "metadata": {
+          "description": "The unique guid for this workbook instance"
+        }
+      }
+    },
+    "resources": [
+      {
+        "name": "[parameters('workbookId')]",
+        "type": "microsoft.insights/workbooks",
+        "location": "[resourceGroup().location]",
+        "apiVersion": "2022-04-01",
+        "dependsOn": [],
+        "kind": "shared",
+        "properties": {
+          "displayName": "[parameters('workbookDisplayName')]",
+          "serializedData": "{\"version\":\"Notebook/1.0\",\"items\":[{\"type\":12,\"content\":{\"version\":\"NotebookGroup/1.0\",\"groupType\":\"editable\",\"items\":[{\"type\":1,\"content\":{\"json\":\"# My Workbook\"},\"name\":\"WorkbookTitle\"}]},\"name\":\"group0\"},{\"type\":11,\"content\":{\"version\":\"LinkItem/1.0\",\"style\":\"tabs\",\"links\":[{\"id\":\"df33fbea-df80-42bf-b93b-da012a9659de\",\"cellValue\":\"selectedtab\",\"linkTarget\":\"parameter\",\"linkLabel\":\"Tab1\",\"subTarget\":\"tab1\",\"style\":\"link\"},{\"id\":\"a2dd814f-c7eb-4b69-b152-da66f39a015a\",\"cellValue\":\"selectedtab\",\"linkTarget\":\"parameter\",\"linkLabel\":\"Tab2\",\"subTarget\":\"tab2\",\"style\":\"link\"},{\"id\":\"9074b786-5460-4aaa-a79a-b6643a7abd80\",\"cellValue\":\"selectedtab\",\"linkTarget\":\"parameter\",\"linkLabel\":\"Tab3\",\"subTarget\":\"tab3\",\"style\":\"link\"},{\"id\":\"e4c80f89-2f6a-4b27-ae82-8d8aadb889df\",\"cellValue\":\"selectedtab\",\"linkTarget\":\"parameter\",\"linkLabel\":\"Tab4\",\"subTarget\":\"tab4\",\"style\":\"link\"},{\"id\":\"a85651eb-dcdc-4f34-9a36-64cde0172459\",\"cellValue\":\"selectedtab\",\"linkTarget\":\"parameter\",\"linkLabel\":\"Tab5\",\"subTarget\":\"tab5\",\"style\":\"link\"}]},\"name\":\"links0\"},{\"type\":12,\"content\":{\"version\":\"NotebookGroup/1.0\",\"groupType\":\"editable\",\"title\":\"Tab1 Group Title\",\"items\":[]},\"conditionalVisibility\":{\"parameterName\":\"selectedtab\",\"comparison\":\"isEqualTo\",\"value\":\"tab1\"},\"name\":\"group1\"},{\"type\":12,\"content\":{\"version\":\"NotebookGroup/1.0\",\"groupType\":\"editable\",\"title\":\"Tab2 Group Title\",\"items\":[]},\"conditionalVisibility\":{\"parameterName\":\"selectedtab\",\"comparison\":\"isEqualTo\",\"value\":\"tab2\"},\"name\":\"group2\"},{\"type\":12,\"content\":{\"version\":\"NotebookGroup/1.0\",\"groupType\":\"editable\",\"title\":\"Tab3 Group Title\",\"items\":[]},\"conditionalVisibility\":{\"parameterName\":\"selectedtab\",\"comparison\":\"isEqualTo\",\"value\":\"tab3\"},\"name\":\"group3\"},{\"type\":12,\"content\":{\"version\":\"NotebookGroup/1.0\",\"groupType\":\"editable\",\"title\":\"Tab4 Group Title\",\"items\":[]},\"conditionalVisibility\":{\"parameterName\":\"selectedtab\",\"comparison\":\"isEqualTo\",\"value\":\"tab4\"},\"name\":\"group4\"},{\"type\":12,\"content\":{\"version\":\"NotebookGroup/1.0\",\"groupType\":\"editable\",\"title\":\"Tab5 Group Title\",\"items\":[]},\"conditionalVisibility\":{\"parameterName\":\"selectedtab\",\"comparison\":\"isEqualTo\",\"value\":\"tab5\"},\"name\":\"group5\"}],\"isLocked\":false,\"fallbackResourceIds\":[\"Azure Monitor\"]}",
+          "version": "1.0",
+          "sourceId": "[parameters('workbookSourceId')]",
+          "category": "[parameters('workbookType')]"
+        }
+      }
+    ],
+    "outputs": {
+      "workbookId": {
+        "type": "string",
+        "value": "[resourceId( 'microsoft.insights/workbooks', parameters('workbookId'))]"
+      }
+    },
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#"
+  }
