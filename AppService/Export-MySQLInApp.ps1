@@ -1,0 +1,2 @@
+#Not working, backup the App Service with custom settings and go to storage account to .zip file. .sql file is backed up with site. App Service needs to be running/started.
+"D:\Program Files (x86)\mysql\5.7.9.0\bin\mysqldump.exe" --databases --user=azure --password localdb > d:\home\sql_export.txt
