@@ -15,8 +15,7 @@
 #     [Parameter(Mandatory=$false)][string] $EmailTo = (Get-AutomationVariable -Name 'EmailTo'),
 #     [Parameter(Mandatory=$false)][string] $EmailFrom = (Get-AutomationVariable -Name 'EmailFrom'),
 #     [Parameter(Mandatory=$false)][string[]] $AppIdsToMontior,
-#     [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
-#     [Parameter(Mandatory=$false)][bool] $WriteVerboseLog = $false
+#     [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration
 # )
 ###
 
@@ -29,8 +28,7 @@ Param(
     [Parameter(Mandatory=$true)][string] $EmailTo,
     [Parameter(Mandatory=$true)][string] $EmailFrom,
     [Parameter(Mandatory=$false)][string[]] $AppIdsToMontior,
-    [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
-    [Parameter(Mandatory=$false)][bool] $WriteVerboseLog = $false
+    [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration
 )
 ###
 
@@ -50,7 +48,6 @@ $global:SecretApps = New-Object System.Collections.ArrayList
 $global:TrackLimitErrors = 0
 $global:TotalAppsProcessed = 0
 
-$TotalTicks = 0
 $stopwatch = [system.diagnostics.stopwatch]::StartNew()
 
 Class SecretApp
@@ -60,12 +57,6 @@ Class SecretApp
   [string]$InternalId
   [object]$Secrets
   [object]$Certs
-}
-
-Function Write-Verbose($msg) {
-    if ($WriteVerboseLog) {
-        Write-Output "`n$msg"
-    }
 }
 
 Function Get-MSGraphToken {
@@ -79,9 +70,8 @@ Function Get-MSGraphToken {
         #ConsistencyLevel = 'eventual'  #Needed in MSGraph advanced queries; https://learn.microsoft.com/en-us/graph/aad-advanced-queries?tabs=http
     }
     Write-Verbose "Getting Graph API token for tenant $($MSGraphAuthUri)"
-    if ($WriteVerboseLog) {
-        $MSGraphAuthBody
-    }
+    Write-Verbose $MSGraphAuthBody
+
     try {
         $MSGraphAuthResponse = Invoke-RestMethod -Method Post -Uri $MSGraphAuthUri -Body $MSGraphAuthBody -ErrorAction Stop
     }
@@ -95,7 +85,6 @@ Function Get-MSGraphToken {
 Function Get-GraphAppPageItems($apps) {
 
     ForEach ($app in $apps) {
-
         $AddApp = $false
 
         #Check if the script is monitoring a set of Apps and if the appId is in the list
@@ -134,9 +123,6 @@ Function Get-GraphAppPageItems($apps) {
             $secapp.Certs = ($app.passwordCredentials | ConvertTo-Json)
             $null = $global:SecretApps.Add($secapp)
         }
-
-        #if ($WriteVerboseLog) { $global:SecretApps }   #working, not needed
-        
     }
 }
 
@@ -188,7 +174,9 @@ Function Send-Email {
                                             value = "$body" }
                                 )} | ConvertTo-Json -Depth 10
     $rest = Invoke-RestMethod -Uri "https://api.sendgrid.com/v3/mail/send" -Method Post -Headers $headers -Body $jsonRequest 
-    $body
+    Write-Verbose "Sending request for email"
+    Write-Verbose $headers
+    Write-Verbose $body
 }
 
 #START
@@ -214,57 +202,41 @@ Get-GraphAppPageItems $appsinpagetoprocess
 
 #Cycle through remaining pages
 
-# do {
-#     $pagenum = $pagenum + 1
-#      $response = Invoke-WebRequest -Method Get -Uri $global:rjson.'@odata.nextLink' -Headers $global:BearerTokenHeader -UseBasicParsing -ContentType 'application/json'
-#      $global:rjson = $response | ConvertFrom-Json
-#      $global:TotalAppsProcessed = $global:TotalAppsProcessed + $global:rjson.value.count
-#      $appsinpagetoprocess = $global:rjson.value | where-Object( { ($_.keyCredentials.Count -gt 0) -or ($_.passwordCredentials.Count -gt 0) } )
+do {
+    $pagenum = $pagenum + 1
+     $response = Invoke-WebRequest -Method Get -Uri $global:rjson.'@odata.nextLink' -Headers $global:BearerTokenHeader -UseBasicParsing -ContentType 'application/json'
+     $global:rjson = $response | ConvertFrom-Json
+     $global:TotalAppsProcessed = $global:TotalAppsProcessed + $global:rjson.value.count
+     $appsinpagetoprocess = $global:rjson.value | where-Object( { ($_.keyCredentials.Count -gt 0) -or ($_.passwordCredentials.Count -gt 0) } )
 
-#         #Throttle based on recommended time in 429 HTTP status
-#         If ($response.StatusCode -eq 429) {
-#             $global:TrackLimitErrors =+ 1
-#             Write-Output $response.Headers
-#             Start-Sleep -Seconds 30
-#         }
+        #Throttle based on recommended time in 429 HTTP status
+        If ($response.StatusCode -eq 429) {
+            $global:TrackLimitErrors =+ 1
+            Write-Output $response.Headers
+            Start-Sleep -Seconds 30
+        }
 
-#      #Add some time so that the MSGraph query quota does not trigger
-#      Start-Sleep -Seconds 1
+     #Add some time so that the MSGraph query quota does not trigger
+     Start-Sleep -Seconds 1
     
-#     #Get each page of apps and process
-#     Write-Verbose "Processing page $pagenum of results"
-#     Get-GraphAppPageItems $appsinpagetoprocess
+    #Get each page of apps and process
+    Write-Verbose "Processing page $pagenum of results"
+    Get-GraphAppPageItems $appsinpagetoprocess
 
-# } while (
-#      #Stop when the there is not a @odata.nextLink URL in the .json body
-#      ($global:rjson.'@odata.nextLink').Length -gt 0
-# )
+} while (
+     #Stop when the there is not a @odata.nextLink URL in the .json body
+     ($global:rjson.'@odata.nextLink').Length -gt 0
+)
 
 Write-Output "Apps List: $AppIdsToMontior"
 Write-Output "Day until expiration: $DaysUntilExpiration"
 Write-Output "$global:TotalAppsProcessed apps processed"
 Write-Output "$($global:SecretApps.Count) apps in list"
-
-$global:SecretApps
+Write-Output "`n`rUse global variable `$global:SecretApps for app list"
+$global:SecretApps | Format-Table -AutoSize
 
 Send-Email
 
 #Track duration of script
-$stopwatch.Elapsed
+Write-Output $stopwatch.Elapsed
 $stopwatch.Stop()
-
-
-
-
-
-
-
-#Write-Verbose $global:rjson.'@odata.nextLink'
-#$global:rjson.value.appId
-#($global:rjson.value.appId).Count
-
-#2nd req
-#$response = Invoke-WebRequest -Method Get -Uri $global:rjson.'@odata.nextLink' -Headers $global:BearerTokenHeader -UseBasicParsing -ContentType 'application/json'
-#$global:rjson = $response | ConvertFrom-Json
-#Write-Verbose $global:rjson.'@odata.nextLink'
-#$global:rjson.value.appId
