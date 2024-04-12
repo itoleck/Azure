@@ -91,6 +91,7 @@ Function Get-GraphAppPageItems($apps) {
         #Check if the script is monitoring a set of Apps and if the appId is in the list
         If ($global:AppIdsToMontior.count -gt 0) {
             If ($global:AppIdsToMontior.Contains($app.appId) ) {
+                Write-Verbose "Found monitored app: $($app.appId), $($app.displayName), checking expirations."
                 ForEach ($c in $app.keyCredentials) {
                     If ( $c.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {
                         $AddApp = $true
@@ -126,7 +127,7 @@ Function Get-GraphAppPageItems($apps) {
         }
 
         #if ($WriteVerboseLog) { $global:SecretApps }   #working, not needed
-        Write-Verbose "Processing app: $($app.displayName)"
+        Write-Debug "Processing app: $($app.displayName)"
     }
 }
 
