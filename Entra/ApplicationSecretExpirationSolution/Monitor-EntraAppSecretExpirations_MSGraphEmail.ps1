@@ -91,7 +91,7 @@ Function Get-GraphAppPageItems($apps) {
         #Check if the script is monitoring a set of Apps and if the appId is in the list
         If ($global:AppIdsToMontior.count -gt 0) {
             If ($global:AppIdsToMontior.Contains($app.appId) ) {
-                Write-Verbose "Found monitored app: $($app.appId), $($app.displayName), checking expirations."
+                Write-Verbose "Monitored app, checking expirations: $($app.appId), $($app.displayName), $($app.keyCredentials), $($app.passwordCredentials)"
                 ForEach ($c in $app.keyCredentials) {
                     If ( $c.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {
                         $AddApp = $true
@@ -104,6 +104,7 @@ Function Get-GraphAppPageItems($apps) {
                 }
             }
         } else {    #Not processing appIds so add any apps that have old secrets
+            Write-Verbose "Checking app expirations: $($app.appId), $($app.displayName), $($app.keyCredentials), $($app.passwordCredentials)"
             ForEach ($c in $app.keyCredentials) {
                 If ( $c.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {    #Fix - Did not catch app with expired cert
                     $AddApp = $true
@@ -139,8 +140,6 @@ Function Send-Email {
     }
 
     Connect-MgGraph -AccessToken $secureString
-
-
 
     $body = '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Expired/Expiring Application Secrets</title></head><body><table style="padding: 10px;border: 1px solid black;border-collapse: collapse;table-layout:fixed;width: 100%;">'
     $body = $body + ('<tr style="background-color:808080;border-bottom: 1px solid black;"><td style="padding: 10px;width: 300px;overflow: hidden;"><b>Application(SPN) Name</b></td><td style="padding: 10px;width: 300px;overflow: hidden;"><b>Application ID</b></td><td style="padding: 10px;width: 300px;overflow: hidden;"><b>Expiring/Expired Secrets</b></td><td style="padding: 10px;width: 300px;overflow: hidden;"><b>Expiring/Expired Certificates</b></td></tr>')
@@ -223,31 +222,31 @@ Get-GraphAppPageItems $appsinpagetoprocess
 
 #Cycle through remaining pages
 
-do {
-    $pagenum = $pagenum + 1
-     $response = Invoke-WebRequest -Method Get -Uri $global:rjson.'@odata.nextLink' -Headers $global:BearerTokenHeader -UseBasicParsing -ContentType 'application/json'
-     $global:rjson = $response | ConvertFrom-Json
-     $global:TotalAppsProcessed = $global:TotalAppsProcessed + $global:rjson.value.count
-     $appsinpagetoprocess = $global:rjson.value | where-Object( { ($_.keyCredentials.Count -gt 0) -or ($_.passwordCredentials.Count -gt 0) } )
+# do {
+#     $pagenum = $pagenum + 1
+#      $response = Invoke-WebRequest -Method Get -Uri $global:rjson.'@odata.nextLink' -Headers $global:BearerTokenHeader -UseBasicParsing -ContentType 'application/json'
+#      $global:rjson = $response | ConvertFrom-Json
+#      $global:TotalAppsProcessed = $global:TotalAppsProcessed + $global:rjson.value.count
+#      $appsinpagetoprocess = $global:rjson.value | where-Object( { ($_.keyCredentials.Count -gt 0) -or ($_.passwordCredentials.Count -gt 0) } )
 
-        #Throttle based on recommended time in 429 HTTP status
-        If ($response.StatusCode -eq 429) {
-            $global:TrackLimitErrors =+ 1
-            Write-Output $response.Headers
-            Start-Sleep -Seconds 30
-        }
+#         #Throttle based on recommended time in 429 HTTP status
+#         If ($response.StatusCode -eq 429) {
+#             $global:TrackLimitErrors =+ 1
+#             Write-Output $response.Headers
+#             Start-Sleep -Seconds 30
+#         }
 
-     #Add some time so that the MSGraph query quota does not trigger
-     Start-Sleep -Seconds 1
+#      #Add some time so that the MSGraph query quota does not trigger
+#      Start-Sleep -Seconds 1
     
-    #Get each page of apps and process
-    Write-Verbose "Processing page $pagenum of results"
-    Get-GraphAppPageItems $appsinpagetoprocess
+#     #Get each page of apps and process
+#     Write-Verbose "Processing page $pagenum of results"
+#     Get-GraphAppPageItems $appsinpagetoprocess
 
-} while (
-     #Stop when the there is not a @odata.nextLink URL in the .json body
-     ($global:rjson.'@odata.nextLink').Length -gt 0
-)
+# } while (
+#      #Stop when the there is not a @odata.nextLink URL in the .json body
+#      ($global:rjson.'@odata.nextLink').Length -gt 0
+# )
 
 Write-Output "Apps List: $AppIdsToMontior"
 Write-Output "Day until expiration: $DaysUntilExpiration"
@@ -256,7 +255,7 @@ Write-Output "$($global:SecretApps.Count) apps in list"
 
 $global:SecretApps
 
-Send-Email
+#Send-Email
 
 #Track duration of script
 $stopwatch.Elapsed

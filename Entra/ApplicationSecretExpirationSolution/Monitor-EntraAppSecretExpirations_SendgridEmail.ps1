@@ -90,7 +90,7 @@ Function Get-GraphAppPageItems($apps) {
         #Check if the script is monitoring a set of Apps and if the appId is in the list
         If ($global:AppIdsToMontior.count -gt 0) {
             If ($global:AppIdsToMontior.Contains($app.appId) ) {
-                Write-Verbose "Found monitored app: $($app.appId), $($app.displayName), checking expirations."
+                Write-Verbose "Monitored app, checking expirations: $($app.appId), $($app.displayName), $($app.keyCredentials), $($app.passwordCredentials)"
                 ForEach ($c in $app.keyCredentials) {
                     If ( $c.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {
                         $AddApp = $true
@@ -103,6 +103,7 @@ Function Get-GraphAppPageItems($apps) {
                 }
             }
         } else {    #Not processing appIds so add any apps that have old secrets
+            Write-Verbose "Checking app expirations: $($app.appId), $($app.displayName), $($app.keyCredentials), $($app.passwordCredentials)"
             ForEach ($c in $app.keyCredentials) {
                 If ( $c.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {    #Fix - Did not catch app with expired cert
                     $AddApp = $true
