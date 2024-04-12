@@ -4,7 +4,7 @@
 #Used as an Azure Automation Runbook or locally
 #Chad Schultz https://github.com/itoleck/VariousScripts/tree/main/Azure/Entra
 
-##requires -Modules Microsoft.Graph,Microsoft.Graph.Applications,Microsoft.Graph.Authentication
+##requires -Modules Microsoft.Graph,Microsoft.Graph.Applications,Microsoft.Graph.Authentication,Microsoft.Graph.Mail
 
 #Run in Azure Automation
 # Param(
@@ -126,7 +126,7 @@ Function Get-GraphAppPageItems($apps) {
         }
 
         #if ($WriteVerboseLog) { $global:SecretApps }   #working, not needed
-        
+        Write-Verbose "Processing app: $($app.displayName)"
     }
 }
 
