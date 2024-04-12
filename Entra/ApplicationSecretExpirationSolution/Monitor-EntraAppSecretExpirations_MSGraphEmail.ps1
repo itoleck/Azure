@@ -14,8 +14,7 @@
 #     [Parameter(Mandatory=$false)][string] $EmailTo = (Get-AutomationVariable -Name 'EmailTo'),
 #     [Parameter(Mandatory=$false)][string] $EmailFrom = (Get-AutomationVariable -Name 'EmailFrom'),
 #     [Parameter(Mandatory=$false)][string[]] $AppIdsToMontior,
-#     [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
-#     [Parameter(Mandatory=$false)][bool] $WriteVerboseLog = $false
+#     [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration
 # )
 ###
 
@@ -27,8 +26,7 @@ Param(
     [Parameter(Mandatory=$true)][string] $EmailTo,
     [Parameter(Mandatory=$true)][string] $EmailFrom,
     [Parameter(Mandatory=$false)][string[]] $AppIdsToMontior,
-    [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
-    [Parameter(Mandatory=$false)][bool] $WriteVerboseLog = $false
+    [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration
 )
 ###
 
@@ -58,12 +56,6 @@ Class SecretApp
   [string]$InternalId
   [object]$Secrets
   [object]$Certs
-}
-
-Function Write-Verbose($msg) {
-    if ($WriteVerboseLog) {
-        Write-Output "`n$msg"
-    }
 }
 
 Function Get-MSGraphToken {
