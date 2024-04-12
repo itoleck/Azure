@@ -14,7 +14,7 @@
 #     [Parameter(Mandatory=$false)][string] $SendGridKey = (Get-AutomationVariable -Name 'SendGridKey'),
 #     [Parameter(Mandatory=$false)][string] $EmailTo = (Get-AutomationVariable -Name 'EmailTo'),
 #     [Parameter(Mandatory=$false)][string] $EmailFrom = (Get-AutomationVariable -Name 'EmailFrom'),
-#     [Parameter(Mandatory=$false)][string[]] $AppIdsToMontior,
+#     [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
 #     [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration
 # )
 ###
@@ -27,7 +27,7 @@ Param(
     [Parameter(Mandatory=$true)][string] $SendGridKey,
     [Parameter(Mandatory=$true)][string] $EmailTo,
     [Parameter(Mandatory=$true)][string] $EmailFrom,
-    [Parameter(Mandatory=$false)][string[]] $AppIdsToMontior,
+    [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
     [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration
 )
 ###
