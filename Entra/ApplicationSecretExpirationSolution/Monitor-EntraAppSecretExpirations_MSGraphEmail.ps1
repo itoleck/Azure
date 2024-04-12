@@ -4,7 +4,7 @@
 #Used as an Azure Automation Runbook or locally
 #Chad Schultz https://github.com/itoleck/VariousScripts/tree/main/Azure/Entra
 
-##requires -Modules Microsoft.Graph,Microsoft.Graph.Applications,Microsoft.Graph.Authentication,Microsoft.Graph.Mail
+##requires -Modules Microsoft.Graph,Microsoft.Graph.Applications,Microsoft.Graph.Authentication,Microsoft.Graph.Mail,Microsoft.Graph.Users.Actions
 
 #Run in Azure Automation
 # Param(
@@ -14,7 +14,7 @@
 #     [Parameter(Mandatory=$false)][string] $EmailTo = (Get-AutomationVariable -Name 'EmailTo'),
 #     [Parameter(Mandatory=$false)][string] $EmailFrom = (Get-AutomationVariable -Name 'EmailFrom'),
 #     [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
-#     [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration
+#     [Parameter(Mandatory=$true)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration
 # )
 ###
 
@@ -91,7 +91,7 @@ Function Get-GraphAppPageItems($apps) {
         #Check if the script is monitoring a set of Apps and if the appId is in the list
         If ($global:AppIdsToMontior.count -gt 0) {
             If ($global:AppIdsToMontior.Contains($app.appId) ) {
-                Write-Verbose "Monitored app, checking expirations: $($app.appId), $($app.displayName), $($app.keyCredentials), $($app.passwordCredentials)"
+                #Write-Verbose "Monitored app, checking expirations: $($app.appId), $($app.displayName), $($app.keyCredentials), $($app.passwordCredentials)"
                 ForEach ($c in $app.keyCredentials) {
                     If ( $c.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {
                         $AddApp = $true
@@ -104,13 +104,14 @@ Function Get-GraphAppPageItems($apps) {
                 }
             }
         } else {    #Not processing appIds so add any apps that have old secrets
-            Write-Verbose "Checking app expirations: $($app.appId), $($app.displayName), $($app.keyCredentials), $($app.passwordCredentials)"
+            #Write-Verbose "Checking app expirations: $($app.appId), $($app.displayName), $($app.keyCredentials), $($app.passwordCredentials)"
             ForEach ($c in $app.keyCredentials) {
-                If ( $c.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {    #Fix - Did not catch app with expired cert
+                If ( $c.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {    #Fix - Did not catch app with expired cert, this is when running in PS5.1, ISO date format does not match .Net, need to fix.
                     $AddApp = $true
                 }
             }
             ForEach ($p in $app.passwordCredentials) {
+
                 If ( $p.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {
                     $AddApp = $true
                 }
@@ -174,28 +175,12 @@ Function Send-Email {
         #$body = $body + "`n"
     }
     $body = $body + ("</table></body></html>")
-    #$body = $body.replace('"','').replace('{','').replace('}','')
-
-    # $headers = @{}
-    # $headers.Add("Authorization","Bearer $SendGridKey")
-    # $headers.Add("Content-Type", "application/json")
- 
-    # $jsonRequest = [ordered]@{
-    #                         personalizations= @(@{to = @(@{email =  "$EmailTo"})
-    #                             subject = "Expiring Entra ID Applications" })
-    #                             from = @{email = "$EmailFrom"}
-    #                             content = @( @{ type = "text/html"
-    #                                         value = "$body" }
-    #                             )} | ConvertTo-Json -Depth 10
-    #$rest = Invoke-RestMethod -Uri "https://api.sendgrid.com/v3/mail/send" -Method Post -Headers $headers -Body $jsonRequest 
-    #$body
     $MessageBody = @{
         content = "$($body)"
         ContentType = 'html'
     }
-    $EmailAddress  = @{address = $EmailFrom} 
-    $EmailRecipient = @{EmailAddress = $EmailTo}
-    $NewEmail = New-MgUserMessage -UserId $EmailAddress -Body $MessageBody -ToRecipients $EmailRecipient -Subject "Expiring Entra ID Applications"
+    $EmailRecipient = @{emailAddress = @{address = $EmailTo} }
+    $NewEmail = New-MgUserMessage -UserId $EmailFrom -Body $MessageBody -ToRecipients $EmailRecipient -Subject "Expiring Entra ID Applications"
     Send-MgUserMessage -UserId $EmailAddress -MessageId $NewEmail.Id
 }
 
@@ -203,8 +188,8 @@ Function Send-Email {
 $pagenum = 1
 #First get the MSGraph token for access the Entra Application list
 Get-MSGraphToken
-Write-Verbose "MSGraph token"
-Write-Verbose $global:MSGraphToken
+#Write-Verbose "MSGraph token"
+#Write-Verbose $global:MSGraphToken
 
 #Get first page of Entra Applications based on MSGraph query
 $global:BearerTokenHeader = @{
@@ -222,31 +207,31 @@ Get-GraphAppPageItems $appsinpagetoprocess
 
 #Cycle through remaining pages
 
-# do {
-#     $pagenum = $pagenum + 1
-#      $response = Invoke-WebRequest -Method Get -Uri $global:rjson.'@odata.nextLink' -Headers $global:BearerTokenHeader -UseBasicParsing -ContentType 'application/json'
-#      $global:rjson = $response | ConvertFrom-Json
-#      $global:TotalAppsProcessed = $global:TotalAppsProcessed + $global:rjson.value.count
-#      $appsinpagetoprocess = $global:rjson.value | where-Object( { ($_.keyCredentials.Count -gt 0) -or ($_.passwordCredentials.Count -gt 0) } )
+do {
+    $pagenum = $pagenum + 1
+     $response = Invoke-WebRequest -Method Get -Uri $global:rjson.'@odata.nextLink' -Headers $global:BearerTokenHeader -UseBasicParsing -ContentType 'application/json'
+     $global:rjson = $response | ConvertFrom-Json
+     $global:TotalAppsProcessed = $global:TotalAppsProcessed + $global:rjson.value.count
+     $appsinpagetoprocess = $global:rjson.value | where-Object( { ($_.keyCredentials.Count -gt 0) -or ($_.passwordCredentials.Count -gt 0) } )
 
-#         #Throttle based on recommended time in 429 HTTP status
-#         If ($response.StatusCode -eq 429) {
-#             $global:TrackLimitErrors =+ 1
-#             Write-Output $response.Headers
-#             Start-Sleep -Seconds 30
-#         }
+        #Throttle based on recommended time in 429 HTTP status
+        If ($response.StatusCode -eq 429) {
+            $global:TrackLimitErrors =+ 1
+            Write-Output $response.Headers
+            Start-Sleep -Seconds 30
+        }
 
-#      #Add some time so that the MSGraph query quota does not trigger
-#      Start-Sleep -Seconds 1
+     #Add some time so that the MSGraph query quota does not trigger
+     Start-Sleep -Seconds 1
     
-#     #Get each page of apps and process
-#     Write-Verbose "Processing page $pagenum of results"
-#     Get-GraphAppPageItems $appsinpagetoprocess
+    #Get each page of apps and process
+    Write-Verbose "Processing page $pagenum of results"
+    Get-GraphAppPageItems $appsinpagetoprocess
 
-# } while (
-#      #Stop when the there is not a @odata.nextLink URL in the .json body
-#      ($global:rjson.'@odata.nextLink').Length -gt 0
-# )
+} while (
+     #Stop when the there is not a @odata.nextLink URL in the .json body
+     ($global:rjson.'@odata.nextLink').Length -gt 0
+)
 
 Write-Output "Apps List: $AppIdsToMontior"
 Write-Output "Day until expiration: $DaysUntilExpiration"
@@ -255,7 +240,7 @@ Write-Output "$($global:SecretApps.Count) apps in list"
 
 $global:SecretApps
 
-#Send-Email
+Send-Email
 
 #Track duration of script
 $stopwatch.Elapsed

@@ -15,7 +15,7 @@
 #     [Parameter(Mandatory=$false)][string] $EmailTo = (Get-AutomationVariable -Name 'EmailTo'),
 #     [Parameter(Mandatory=$false)][string] $EmailFrom = (Get-AutomationVariable -Name 'EmailFrom'),
 #     [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
-#     [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration
+#     [Parameter(Mandatory=$true)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration
 # )
 ###
 
@@ -105,7 +105,7 @@ Function Get-GraphAppPageItems($apps) {
         } else {    #Not processing appIds so add any apps that have old secrets
             Write-Verbose "Checking app expirations: $($app.appId), $($app.displayName), $($app.keyCredentials), $($app.passwordCredentials)"
             ForEach ($c in $app.keyCredentials) {
-                If ( $c.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {    #Fix - Did not catch app with expired cert
+                If ( $c.endDateTime -lt ( (Get-Date).AddDays($DaysUntilExpiration) ) ) {    #Fix - Did not catch app with expired cert, this is when running in PS5.1, ISO date format does not match .Net, need to fix.
                     $AddApp = $true
                 }
             }
