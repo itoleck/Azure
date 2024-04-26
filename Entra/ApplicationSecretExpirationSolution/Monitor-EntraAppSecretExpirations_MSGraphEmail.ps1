@@ -36,8 +36,8 @@ $global:MSGraphToken = ''
 $global:EntraAppUri = 'https://graph.microsoft.com/v1.0/applications?$select=id,appId,displayName,keyCredentials,passwordCredentials&$top=250'  #Find better query to find only apps with secrets or certs
     #Test Queries
     #Error - https://graph.microsoft.com/v1.0/applications?$filter=keyCredentials/any(c:c ne 0)&$top=1
-    #Error - https://graph.microsoft.com/v1.0/applications?filter=keyCredentials/endDateTime/any(k:k gt '2022/01/01')$top=1
-    #
+    #Error - https://graph.microsoft.com/v1.0/applications?$filter=keyCredentials/endDateTime/any(k:k gt '2022/01/01')$top=1
+    #Filtering not possible at this time per, https://learn.microsoft.com/en-us/graph/aad-advanced-queries?view=graph-rest-1.0&tabs=http#application-properties
     #
     #
     #
