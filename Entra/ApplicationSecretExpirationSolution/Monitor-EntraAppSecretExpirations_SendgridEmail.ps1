@@ -18,7 +18,8 @@ using namespace System.Collections.Generic
 #     [Parameter(Mandatory=$false)][string] $EmailFrom = (Get-AutomationVariable -Name 'EmailFrom'),
 #     [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
 #     [Parameter(Mandatory=$true)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
-#     [Parameter(Mandatory=$false)][string] $NoSend
+#     [Parameter(Mandatory=$false)][string] $NoSend,
+#     [Parameter(Mandatory=$false)][string] $OnePage
 # )
 ###
 
@@ -32,7 +33,8 @@ Param(
     [Parameter(Mandatory=$true)][string] $EmailFrom,
     [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
     [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
-    [Parameter(Mandatory=$false)][string] $NoSend
+    [Parameter(Mandatory=$false)][string] $NoSend,
+    [Parameter(Mandatory=$false)][string] $OnePage
 )
 ###
 
@@ -180,32 +182,33 @@ Write-Verbose "Processing first page of results"
 Get-GraphAppPageItems $appsinpagetoprocess
 
 #Cycle through remaining pages
+if ([string]::IsNullOrEmpty($OnePage)) {
+    do {
+        $pagenum = $pagenum + 1
+        $response = Invoke-WebRequest -Method Get -Uri $global:rjson.'@odata.nextLink' -Headers $global:BearerTokenHeader -UseBasicParsing -ContentType 'application/json'
+        $global:rjson = $response | ConvertFrom-Json
+        $global:TotalAppsProcessed = $global:TotalAppsProcessed + $global:rjson.value.count
+        $appsinpagetoprocess = $global:rjson.value | where-Object( { ($_.keyCredentials.Count -gt 0) -or ($_.passwordCredentials.Count -gt 0) } )
 
-# do {
-#     $pagenum = $pagenum + 1
-#      $response = Invoke-WebRequest -Method Get -Uri $global:rjson.'@odata.nextLink' -Headers $global:BearerTokenHeader -UseBasicParsing -ContentType 'application/json'
-#      $global:rjson = $response | ConvertFrom-Json
-#      $global:TotalAppsProcessed = $global:TotalAppsProcessed + $global:rjson.value.count
-#      $appsinpagetoprocess = $global:rjson.value | where-Object( { ($_.keyCredentials.Count -gt 0) -or ($_.passwordCredentials.Count -gt 0) } )
+            #Throttle based on recommended time in 429 HTTP status
+            If ($response.StatusCode -eq 429) {
+                $global:TrackLimitErrors =+ 1
+                Write-Output $response.Headers
+                Start-Sleep -Seconds 30
+            }
 
-#         #Throttle based on recommended time in 429 HTTP status
-#         If ($response.StatusCode -eq 429) {
-#             $global:TrackLimitErrors =+ 1
-#             Write-Output $response.Headers
-#             Start-Sleep -Seconds 30
-#         }
+        #Add some time so that the MSGraph query quota does not trigger
+        Start-Sleep -Seconds 1
+        
+        #Get each page of apps and process
+        Write-Verbose "Processing page $pagenum of results"
+        Get-GraphAppPageItems $appsinpagetoprocess
 
-#      #Add some time so that the MSGraph query quota does not trigger
-#      Start-Sleep -Seconds 1
-    
-#     #Get each page of apps and process
-#     Write-Verbose "Processing page $pagenum of results"
-#     Get-GraphAppPageItems $appsinpagetoprocess
-
-# } while (
-#      #Stop when the there is not a @odata.nextLink URL in the .json body
-#      ($global:rjson.'@odata.nextLink').Length -gt 0
-# )
+    } while (
+        #Stop when the there is not a @odata.nextLink URL in the .json body
+        ($global:rjson.'@odata.nextLink').Length -gt 0
+    )
+}
 
 Write-Output "Apps List: $AppIdsToMontior"
 Write-Output "Day until expiration: $DaysUntilExpiration"
