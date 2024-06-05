@@ -1,0 +1,140 @@
+{
+    "properties": {
+        "displayName": "Configure Azure Activity logs to stream to specified Storage Account",
+        "description": "Deploys the diagnostic settings for Azure Activity to stream subscriptions audit logs to a Storage Account to monitor subscription-level events",
+        "mode": "All",
+        "metadata": {
+            "version": "1.0.0",
+            "category": "Monitoring"
+        },
+        "parameters": {
+            "storageAccountId": {
+                "type": "String",
+                "metadata": {
+                    "displayName": "Primary Storage Account",
+                    "description": "If this storage account is outside of the scope of the assignment you must manually grant permissions (or similar) to the policy assignment's principal ID.",
+                    "assignPermissions": true
+                },
+                "defaultValue": "storageaccountid"
+            },
+            "effect": {
+                "type": "String",
+                "metadata": {
+                    "displayName": "Effect",
+                    "description": "Enable or disable the execution of the policy"
+                },
+                "allowedValues": [
+                    "deployIfNotExists",
+                    "Disabled"
+                ],
+                "defaultValue": "deployIfNotExists"
+            },
+            "logsEnabled": {
+                "type": "String",
+                "metadata": {
+                    "displayName": "Enable logs",
+                    "description": "Whether to enable logs stream to the Storage Account - True or False"
+                },
+                "allowedValues": [
+                    "True",
+                    "False"
+                ],
+                "defaultValue": "True"
+            }
+        },
+        "policyRule": {
+            "if": {
+                "field": "type",
+                "equals": "Microsoft.Resources/subscriptions"
+            },
+            "then": {
+                "effect": "[parameters('Effect')]",
+                "details": {
+                    "type": "Microsoft.Insights/diagnosticSettings",
+                    "deploymentScope": "subscription",
+                    "existenceScope": "subscription",
+                    "existenceCondition": {
+                        "allOf": [
+                            {
+                                "field": "Microsoft.Insights/diagnosticSettings/logs.enabled",
+                                "equals": "[parameters('logsEnabled')]"
+                            },
+                            {
+                                "field": "Microsoft.Insights/diagnosticSettings/storageAccountId",
+                                "equals": "[parameters('storageAccountId')]"
+                            }
+                        ]
+                    },
+                    "deployment": {
+                        "location": "eastus",
+                        "properties": {
+                            "mode": "incremental",
+                            "template": {
+                                "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                                "contentVersion": "1.0.0.0",
+                                "parameters": {
+                                    "storageAccountId": {
+                                        "type": "string"
+                                    },
+                                    "logsEnabled": {
+                                        "type": "string"
+                                    }
+                                },
+                                "variables": {},
+                                "resources": [
+                                    {
+                                        "name": "activityToStorage",
+                                        "type": "Microsoft.Insights/diagnosticSettings",
+                                        "apiVersion": "2017-05-01-preview",
+                                        "location": "Global",
+                                        "properties": {
+                                            "storageAccountId": "[parameters('storageAccountId')]",
+                                            "logs": [
+                                                {
+                                                    "category": "Administrative",
+                                                    "enabled": "[parameters('logsEnabled')]"
+                                                },
+                                                {
+                                                    "category": "Security",
+                                                    "enabled": "[parameters('logsEnabled')]"
+                                                },
+                                                {
+                                                    "category": "ServiceHealth",
+                                                    "enabled": "[parameters('logsEnabled')]"
+                                                },
+                                                {
+                                                    "category": "Alert",
+                                                    "enabled": "[parameters('logsEnabled')]"
+                                                },
+                                                {
+                                                    "category": "Recommendation",
+                                                    "enabled": "[parameters('logsEnabled')]"
+                                                },
+                                                {
+                                                    "category": "Policy",
+                                                    "enabled": "[parameters('logsEnabled')]"
+                                                },
+                                                {
+                                                    "category": "Autoscale",
+                                                    "enabled": "[parameters('logsEnabled')]"
+                                                },
+                                                {
+                                                    "category": "ResourceHealth",
+                                                    "enabled": "[parameters('logsEnabled')]"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ],
+                                "outputs": {}
+                            }
+                        }
+                    },
+                    "roleDefinitionIds": [
+                        "/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+                    ]
+                }
+            }
+        }
+    }
+}
