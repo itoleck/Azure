@@ -32,7 +32,7 @@ Param(
     [Parameter(Mandatory=$true)][string] $EmailTo,
     [Parameter(Mandatory=$true)][string] $EmailFrom,
     [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
-    [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
+    [Parameter(Mandatory=$true)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
     [Parameter(Mandatory=$false)][string] $NoSend,
     [Parameter(Mandatory=$false)][string] $OnePage
 )

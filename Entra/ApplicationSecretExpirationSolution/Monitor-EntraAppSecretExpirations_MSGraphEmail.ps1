@@ -13,7 +13,6 @@ using namespace System.Collections.Generic
 #     [Parameter(Mandatory=$false)][string] $MSGraphAppClientId = (Get-AutomationVariable -Name 'MSGraphAppClientId'),
 #     [Parameter(Mandatory=$false)][string] $MSGraphAppTenantId = (Get-AutomationVariable -Name 'MSGraphAppTenantId'),
 #     [Parameter(Mandatory=$false)][string] $MSGraphAppSecret = (Get-AutomationVariable -Name 'MSGraphAppSecret'),
-#     [Parameter(Mandatory=$false)][string] $SendGridKey = (Get-AutomationVariable -Name 'SendGridKey'),
 #     [Parameter(Mandatory=$false)][string] $EmailTo = (Get-AutomationVariable -Name 'EmailTo'),
 #     [Parameter(Mandatory=$false)][string] $EmailFrom = (Get-AutomationVariable -Name 'EmailFrom'),
 #     [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
@@ -28,11 +27,10 @@ Param(
     [Parameter(Mandatory=$true)][string] $MSGraphAppClientId,
     [Parameter(Mandatory=$true)][string] $MSGraphAppTenantId,
     [Parameter(Mandatory=$true)][string] $MSGraphAppSecret,
-    [Parameter(Mandatory=$true)][string] $SendGridKey,
     [Parameter(Mandatory=$true)][string] $EmailTo,
     [Parameter(Mandatory=$true)][string] $EmailFrom,
     [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
-    [Parameter(Mandatory=$false)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
+    [Parameter(Mandatory=$true)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
     [Parameter(Mandatory=$false)][string] $NoSend,
     [Parameter(Mandatory=$false)][string] $OnePage
 )
