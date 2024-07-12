@@ -6,7 +6,7 @@
 
 using namespace System.Collections.Generic
 
-##requires -Modules Microsoft.Graph,Microsoft.Graph.Applications,Microsoft.Graph.Authentication,Microsoft.Graph.Mail
+##requires -Modules Microsoft.Graph,Microsoft.Graph.Applications,Microsoft.Graph.Authentication,Microsoft.Graph.Mail,Microsoft.Graph.Users.Actions
 
 #Run in Azure Automation
 # Param(
