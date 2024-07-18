@@ -18,8 +18,8 @@ using namespace System.Collections.Generic
 #     [Parameter(Mandatory=$false)][string] $EmailFrom = (Get-AutomationVariable -Name 'EmailFrom'),
 #     [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
 #     [Parameter(Mandatory=$true)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
-#     [Parameter(Mandatory=$false)][string] $NoSend,
-#     [Parameter(Mandatory=$false)][string] $OnePage
+#     [Parameter(Mandatory=$false)][switch] $NoSend,
+#     [Parameter(Mandatory=$false)][switch] $OnePage
 # )
 ###
 
@@ -33,8 +33,8 @@ Param(
     [Parameter(Mandatory=$true)][string] $EmailFrom,
     [Parameter(Mandatory=$false)][string[]] $AppIdsToMonitor,
     [Parameter(Mandatory=$true)][ValidateRange(1, 365)][UInt16] $DaysUntilExpiration,
-    [Parameter(Mandatory=$false)][string] $NoSend,
-    [Parameter(Mandatory=$false)][string] $OnePage
+    [Parameter(Mandatory=$false)][switch] $NoSend,
+    [Parameter(Mandatory=$false)][switch] $OnePage
 )
 ###
 
@@ -182,7 +182,8 @@ Write-Verbose "Processing first page of results"
 Get-GraphAppPageItems $appsinpagetoprocess
 
 #Cycle through remaining pages
-if ([string]::IsNullOrEmpty($OnePage)) {
+if ($OnePage) {}
+else {
     do {
         $pagenum = $pagenum + 1
         $response = Invoke-WebRequest -Method Get -Uri $global:rjson.'@odata.nextLink' -Headers $global:BearerTokenHeader -UseBasicParsing -ContentType 'application/json'
@@ -217,7 +218,11 @@ Write-Output "$($global:SecretApps.Count) apps in list"
 Write-Output "`n`rUse global variable `$global:SecretApps for app list"
 $global:SecretApps | Format-Table -AutoSize
 
-Send-Email
+if ($NoSend) {
+    Write-Verbose "Not sending email based on command"
+} else {
+    Send-Email
+}
 
 #Track duration of script
 Write-Output $stopwatch.Elapsed
