@@ -1,0 +1,58 @@
+{
+  "properties": {
+    "displayName": "Inherit a tag from the subscription to Resource Group/s",
+    "policyType": "BuiltIn",
+    "mode": "All",
+    "description": "Adds or replaces the specified tag and value from the containing subscription when any resource is created or updated. Existing resources can be remediated by triggering a remediation task.",
+    "metadata": {
+      "category": "Tags",
+      "version": "1.0.0"
+    },
+    "version": "1.0.0",
+    "parameters": {
+      "tagName1": {
+        "type": "String",
+        "metadata": {
+          "displayName": "Tag Name",
+          "description": "Name of tag to inherit"
+        }
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.Resources/subscriptions/resourceGroups"
+          },
+          {
+            "field": "[concat('tags[', parameters('tagName1'), ']')]",
+            "notEquals": "[subscription().tags[parameters('tagName1')]]"
+          },
+          {
+            "value": "[subscription().tags[parameters('tagName1')]]",
+            "notEquals": ""
+          }
+        ]
+      },
+      "then": {
+        "effect": "modify",
+        "details": {
+          "roleDefinitionIds": [
+            "/providers/microsoft.authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+          ],
+          "operations": [
+            {
+              "operation": "addOrReplace",
+              "field": "[concat('tags[', parameters('tagName1'), ']')]",
+              "value": "[subscription().tags[parameters('tagName1')]]"
+            }
+          ]
+        }
+      }
+    },
+    "versions": [
+      "1.0.0"
+    ]
+  }
+}
