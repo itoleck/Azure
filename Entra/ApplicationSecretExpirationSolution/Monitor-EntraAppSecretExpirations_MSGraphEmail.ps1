@@ -138,6 +138,8 @@ Function Get-GraphAppPageItems($apps) {
 
 Function Send-Email {
 
+    #This could be changed to send multiple emails for large lists of expired secrets
+
     $secureString = New-Object System.Security.SecureString
     foreach ($char in $global:MSGraphToken.ToCharArray()) {
         $secureString.AppendChar($char)

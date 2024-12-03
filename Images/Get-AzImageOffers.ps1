@@ -1,4 +1,7 @@
-﻿$loc = (Get-AzLocation | Sort-Object -Property Location | Select-Object Location | Out-GridView -PassThru)
+﻿#This script will query Azure for compute images in a GUI
+#Chad Schultz https://github.com/itoleck/VariousScripts/tree/main/Azure
+
+$loc = (Get-AzLocation | Sort-Object -Property Location | Select-Object Location | Out-GridView -PassThru)
 
 #$loc = (Read-Host -Prompt "Enter Location ")
 $pub = (Get-AzVMImagePublisher -Location $loc.Location | Sort-Object -Property PublisherName | Select-Object PublisherName | Out-GridView -PassThru)
