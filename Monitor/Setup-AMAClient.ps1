@@ -13,7 +13,7 @@ Select-AzSubscription -SubscriptionId $SubscriptionID
 $auth = Get-AzAccessToken
 $AuthenticationHeader = @{
     "Content-Type" = "application/json"
-    "Authorization" = "Bearer " + $auth.Token
+    "Authorization" = "$($auth.Type) " + $auth.Token
 }
 
 #Create Management Object, need Monitored Object Contributor role
