@@ -1,0 +1,33 @@
+{
+    "mode": "All",
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "tags",
+            "exists": "true"
+          },
+          {
+            "field": "type",
+            "equals": "Microsoft.Resources/subscriptions"
+          },
+          {
+            "field": "tags",
+            "notIn": "[parameters('mandatoryTags')]"
+          }
+        ]
+      },
+      "then": {
+        "effect": "deny"
+      }
+    },
+    "parameters": {
+      "mandatoryTags": {
+        "type": "Array",
+        "metadata": {
+          "displayName": "Mandatory Tags",
+          "description": "List of mandatory tags that cannot be modified, updated, or deleted."
+        }
+      }
+    }
+  }
