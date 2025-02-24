@@ -1,0 +1,1 @@
+** Bicep example templates
