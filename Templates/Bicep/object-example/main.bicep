@@ -6,4 +6,6 @@ param myObject object = {
   tag5: 'main5'
 }
 
+//TODO create a resource based on the object
+
 output myObjectOutput string = string(json(string(myObject)))
