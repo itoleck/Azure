@@ -1,100 +1,51 @@
 {
-    "mode": "All",
-    "policyRule": {
-        "if": {
-            "allOf": [
-                {
-                    "field": "type",
-                    "equals": "Microsoft.Network/networkSecurityGroups"
-                },
-                {
-                    "not": {
-                        "field": "Microsoft.Network/networkSecurityGroups/securityRules[*].name",
-                        "equals": "[parameters('ruleName')]"
-                    }
-                }
-            ]
-        },
-        "then": {
-            "effect": "deployIfNotExists",
-            "details": {
-                "type": "Microsoft.Network/networkSecurityGroups",
-                "name": "[parameters('nsgName')]",
-                "existenceCondition": {
-                    "field": "Microsoft.Network/networkSecurityGroups/securityRules[*].name",
-                    "equals": "[parameters('ruleName')]"
-                },
-                "deployment": {
-                    "properties": {
-                        "mode": "incremental",
-                        "template": {
-                            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                            "contentVersion": "1.0.0.0",
-                            "resources": [
-                                {
-                                    "type": "Microsoft.Network/networkSecurityGroups/securityRules",
-                                    "apiVersion": "2020-11-01",
-                                    "name": "[concat([parameters('nsgName')], '/', [parameters('ruleName'))]]",
-                                    "properties": {
-                                        "protocol": "[parameters('protocol')]",
-                                        "destinationAddressPrefix": "[parameters('destinationAddressPrefix')]",
-                                        "destinationPortRange": "[parameters('destinationPortRange')]",
-                                        "access": "Deny",
-                                        "direction": "Outbound",
-                                        "priority": 1000
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                },
-                "roleDefinitionIds": [
-                    "/providers/Microsoft.Authorization/roleDefinitions/9980e02c-c2be-4d73-94e8-173b1dc7cf3c"
-                ]
-            }
-        }
-    },
-    "parameters": {
-        "nsgName": {
-            "type": "String",
-            "metadata": {
-                "displayName": "NSG Name",
-                "description": "The name of the Network Security Group to which the rule will be added."
-            }
-        },
-        "ruleName": {
-            "type": "String",
-            "metadata": {
-                "displayName": "Rule Name",
-                "description": "The name of the outbound security rule."
-            }
-        },
-        "destinationAddressPrefix": {
-            "type": "String",
-            "metadata": {
-                "displayName": "Destination Address Prefix",
-                "description": "The destination address prefix for the outbound rule."
-            }
-        },
-        "destinationPortRange": {
-            "type": "String",
-            "metadata": {
-                "displayName": "Destination Port Range",
-                "description": "The destination port range for the outbound rule."
-            }
-        },
-        "protocol": {
-            "type": "array",
-            "metadata": {
-                "displayName": "Protocol",
-                "description": "The protocol for the outbound rule.",
-                "allowedValues": [
-                    "Tcp",
-                    "Udp",
-                    "*"
-                ],
-                "defaultValue": "*"
-            }
-        }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.33.93.31351",
+      "templateHash": "6771354248524562263"
     }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2024-05-01",
+      "name": "testdcr2-nsg",
+      "location": "southcentralus",
+      "tags": {
+        "rgtag1": "rgtagvalue2",
+        "Env": "Production"
+      },
+      "properties": {
+        "securityRules": [
+          {
+            "name": "blocksshrdp-denyrule22-3389",
+            "id": "/subscriptions/6394c202-ce34-4741-90ce-c4be54bf9cb3/resourceGroups/scus_rg/providers/Microsoft.Network/networkSecurityGroups/testdcr2-nsg/securityRules/blocksshrdp-denyrule22-3389",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "properties": {
+              "protocol": "TCP",
+              "sourcePortRange": "*",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Deny",
+              "priority": 1000,
+              "direction": "Outbound",
+              "sourcePortRanges": [],
+              "destinationPortRanges": [
+                "22",
+                "3389"
+              ],
+              "sourceAddressPrefixes": [],
+              "destinationAddressPrefixes": []
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "description": "Generated from /subscriptions/6394c202-ce34-4741-90ce-c4be54bf9cb3/resourceGroups/scus_rg/providers/Microsoft.Network/networkSecurityGroups/testdcr2-nsg"
+      }
+    }
+  ]
 }

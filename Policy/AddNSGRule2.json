@@ -1,212 +1,208 @@
 {
-    "properties": {
-      "displayName": "Add outbound security rule to VM network security groups",
-      "description": "This policy adds an outbound security rule to network security groups attached to virtual machines if the rule doesn't already exist.",
-      "mode": "All",
-      "parameters": {
-        "ruleName": {
-          "type": "String",
-          "metadata": {
-            "displayName": "Security Rule Name",
-            "description": "Name of the security rule to be added"
-          },
-          "defaultValue": "Allow-Outbound-HTTPS"
+  "mode": "All",
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "field": "type",
+          "equals": "Microsoft.Network/networkSecurityGroups"
         },
-        "priority": {
-          "type": "Integer",
-          "metadata": {
-            "displayName": "Priority",
-            "description": "Priority of the outbound rule"
-          },
-          "defaultValue": 1000
-        },
-        "direction": {
-          "type": "String",
-          "metadata": {
-            "displayName": "Direction",
-            "description": "Direction of traffic flow the rule applies to"
-          },
-          "defaultValue": "Outbound",
-          "allowedValues": [
-            "Outbound"
-          ]
-        },
-        "access": {
-          "type": "String",
-          "metadata": {
-            "displayName": "Access",
-            "description": "Whether to allow or deny traffic"
-          },
-          "defaultValue": "Allow",
-          "allowedValues": [
-            "Allow",
-            "Deny"
-          ]
-        },
-        "protocol": {
-          "type": "String",
-          "metadata": {
-            "displayName": "Protocol",
-            "description": "Network protocol this rule applies to"
-          },
-          "defaultValue": "Tcp",
-          "allowedValues": [
-            "Tcp",
-            "Udp",
-            "*"
-          ]
-        },
-        "sourcePortRange": {
-          "type": "String",
-          "metadata": {
-            "displayName": "Source Port Range",
-            "description": "Source port or range"
-          },
-          "defaultValue": "*"
-        },
-        "destinationPortRange": {
-          "type": "String",
-          "metadata": {
-            "displayName": "Destination Port Range",
-            "description": "Destination port or range"
-          },
-          "defaultValue": "443"
-        },
-        "sourceAddressPrefix": {
-          "type": "String",
-          "metadata": {
-            "displayName": "Source Address Prefix",
-            "description": "Source address prefix or range"
-          },
-          "defaultValue": "*"
-        },
-        "destinationAddressPrefix": {
-          "type": "String",
-          "metadata": {
-            "displayName": "Destination Address Prefix",
-            "description": "Destination address prefix or range"
-          },
-          "defaultValue": "*"
+        {
+          "field": "Microsoft.Network/networkSecurityGroups/securityRules[*].name",
+          "notContains": "[parameters('ruleName')]"
         }
-      },
-      "policyRule": {
-        "if": {
-          "allOf": [
-            {
-              "field": "type",
-              "equals": "Microsoft.Network/networkSecurityGroups"
-            },
-            {
-              "field": "Microsoft.Network/networkSecurityGroups/securityRules[*].name",
-              "notContains": "[parameters('ruleName')]"
-            }
-          ]
+      ]
+    },
+    "then": {
+      "effect": "deployIfNotExists",
+      "details": {
+        "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+        "name": "[parameters('ruleName')]",
+        "resourceGroupName": "[resourceGroup().name]",
+        "existenceCondition": {
+          "field": "name",
+          "equals": "[parameters('ruleName')]"
         },
-        "then": {
-          "effect": "deployIfNotExists",
-          "details": {
-            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
-            "name": "[parameters('ruleName')]",
-            "resourceGroupName": "[resourceGroup().name]",
-            "existenceCondition": {
-              "field": "name",
-              "equals": "[parameters('ruleName')]"
-            },
-            "roleDefinitionIds": [
-              "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
-            ],
-            "deployment": {
-              "properties": {
-                "mode": "incremental",
-                "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                  "contentVersion": "1.0.0.0",
-                  "parameters": {
-                    "nsgName": {
-                      "type": "string"
-                    },
-                    "ruleName": {
-                      "type": "string"
-                    },
-                    "priority": {
-                      "type": "integer"
-                    },
-                    "direction": {
-                      "type": "string"
-                    },
-                    "access": {
-                      "type": "string"
-                    },
-                    "protocol": {
-                      "type": "string"
-                    },
-                    "sourcePortRange": {
-                      "type": "string"
-                    },
-                    "destinationPortRange": {
-                      "type": "string"
-                    },
-                    "sourceAddressPrefix": {
-                      "type": "string"
-                    },
-                    "destinationAddressPrefix": {
-                      "type": "string"
-                    }
-                  },
-                  "resources": [
-                    {
-                      "type": "Microsoft.Network/networkSecurityGroups/securityRules",
-                      "apiVersion": "2021-08-01",
-                      "name": "[concat(parameters('nsgName'), '/', parameters('ruleName'))]",
-                      "properties": {
-                        "priority": "[parameters('priority')]",
-                        "direction": "[parameters('direction')]",
-                        "access": "[parameters('access')]",
-                        "protocol": "[parameters('protocol')]",
-                        "sourcePortRange": "[parameters('sourcePortRange')]",
-                        "destinationPortRange": "[parameters('destinationPortRange')]",
-                        "sourceAddressPrefix": "[parameters('sourceAddressPrefix')]",
-                        "destinationAddressPrefix": "[parameters('destinationAddressPrefix')]"
-                      }
-                    }
-                  ]
+        "roleDefinitionIds": [
+          "/providers/Microsoft.Authorization/roleDefinitions/4d97b98b-1d4f-4787-a291-c67834d212e7"
+        ],
+        "deployment": {
+          "properties": {
+            "mode": "incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {
+                "nsgName": {
+                  "type": "string"
                 },
-                "parameters": {
-                  "nsgName": {
-                    "value": "[field('name')]"
-                  },
-                  "ruleName": {
-                    "value": "[parameters('ruleName')]"
-                  },
-                  "priority": {
-                    "value": "[parameters('priority')]"
-                  },
-                  "direction": {
-                    "value": "[parameters('direction')]"
-                  },
-                  "access": {
-                    "value": "[parameters('access')]"
-                  },
-                  "protocol": {
-                    "value": "[parameters('protocol')]"
-                  },
-                  "sourcePortRange": {
-                    "value": "[parameters('sourcePortRange')]"
-                  },
-                  "destinationPortRange": {
-                    "value": "[parameters('destinationPortRange')]"
-                  },
-                  "sourceAddressPrefix": {
-                    "value": "[parameters('sourceAddressPrefix')]"
-                  },
-                  "destinationAddressPrefix": {
-                    "value": "[parameters('destinationAddressPrefix')]"
+                "ruleName": {
+                  "type": "string"
+                },
+                "priority": {
+                  "type": "integer"
+                },
+                "direction": {
+                  "type": "string"
+                },
+                "access": {
+                  "type": "string"
+                },
+                "protocol": {
+                  "type": "string"
+                },
+                "sourcePortRange": {
+                  "type": "string"
+                },
+                "destinationPortRange": {
+                  "type": "string"
+                },
+                "sourceAddressPrefix": {
+                  "type": "string"
+                },
+                "destinationAddressPrefix": {
+                  "type": "string"
+                }
+              },
+              "resources": [
+                {
+                  "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                  "apiVersion": "2024-07-01",
+                  "name": "[concat(parameters('nsgName'), '-', parameters('ruleName'))]",
+                  "properties": {
+                    "priority": "[parameters('priority')]",
+                    "direction": "[parameters('direction')]",
+                    "access": "[parameters('access')]",
+                    "protocol": "[parameters('protocol')]",
+                    "sourcePortRange": "[parameters('sourcePortRange')]",
+                    "destinationPortRange": "[parameters('destinationPortRange')]",
+                    "sourceAddressPrefix": "[parameters('sourceAddressPrefix')]",
+                    "destinationAddressPrefix": "[parameters('destinationAddressPrefix')]"
                   }
                 }
+              ]
+            },
+            "parameters": {
+              "nsgName": {
+                "value": "[field('name')]"
+              },
+              "ruleName": {
+                "value": "[parameters('ruleName')]"
+              },
+              "priority": {
+                "value": "[parameters('priority')]"
+              },
+              "direction": {
+                "value": "[parameters('direction')]"
+              },
+              "access": {
+                "value": "[parameters('access')]"
+              },
+              "protocol": {
+                "value": "[parameters('protocol')]"
+              },
+              "sourcePortRange": {
+                "value": "[parameters('sourcePortRange')]"
+              },
+              "destinationPortRange": {
+                "value": "[parameters('destinationPortRange')]"
+              },
+              "sourceAddressPrefix": {
+                "value": "[parameters('sourceAddressPrefix')]"
+              },
+              "destinationAddressPrefix": {
+                "value": "[parameters('destinationAddressPrefix')]"
               }
             }
           }
         }
       }
     }
+  },
+  "parameters": {
+    "ruleName": {
+      "type": "String",
+      "metadata": {
+        "displayName": "Security Rule Name",
+        "description": "Name of the security rule to be added"
+      },
+      "defaultValue": "Allow-Outbound-HTTPS"
+    },
+    "priority": {
+      "type": "Integer",
+      "metadata": {
+        "displayName": "Priority",
+        "description": "Priority of the outbound rule"
+      },
+      "defaultValue": 1000
+    },
+    "direction": {
+      "type": "String",
+      "metadata": {
+        "displayName": "Direction",
+        "description": "Direction of traffic flow the rule applies to"
+      },
+      "allowedValues": [
+        "Outbound"
+      ],
+      "defaultValue": "Outbound"
+    },
+    "access": {
+      "type": "String",
+      "metadata": {
+        "displayName": "Access",
+        "description": "Whether to allow or deny traffic"
+      },
+      "allowedValues": [
+        "Allow",
+        "Deny"
+      ],
+      "defaultValue": "Deny"
+    },
+    "protocol": {
+      "type": "String",
+      "metadata": {
+        "displayName": "Protocol",
+        "description": "Network protocol this rule applies to"
+      },
+      "allowedValues": [
+        "Tcp",
+        "Udp",
+        "*"
+      ],
+      "defaultValue": "*"
+    },
+    "sourcePortRange": {
+      "type": "String",
+      "metadata": {
+        "displayName": "Source Port Range",
+        "description": "Source port or range"
+      },
+      "defaultValue": "*"
+    },
+    "destinationPortRange": {
+      "type": "String",
+      "metadata": {
+        "displayName": "Destination Port Range",
+        "description": "Destination port or range"
+      },
+      "defaultValue": "443"
+    },
+    "sourceAddressPrefix": {
+      "type": "String",
+      "metadata": {
+        "displayName": "Source Address Prefix",
+        "description": "Source address prefix or range"
+      },
+      "defaultValue": "*"
+    },
+    "destinationAddressPrefix": {
+      "type": "String",
+      "metadata": {
+        "displayName": "Destination Address Prefix",
+        "description": "Destination address prefix or range"
+      },
+      "defaultValue": "*"
+    }
   }
+}
