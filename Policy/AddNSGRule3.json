@@ -6,6 +6,10 @@
           {
             "field": "type",
             "equals": "Microsoft.Network/networkSecurityGroups"
+          },
+          {
+            "value": "[empty(field('Microsoft.Network/networkSecurityGroups/subnets[*].id'))]",
+            "equals": true
           }
         ]
       },
