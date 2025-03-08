@@ -1,0 +1,82 @@
+{
+  "mode": "All",
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "field": "type",
+          "equals": "Microsoft.Network/networkSecurityGroups"
+        },
+        {
+          "value": "[empty(field('Microsoft.Network/networkSecurityGroups/subnets[*].id'))]",
+          "equals": true
+        }
+      ]
+    },
+    "then": {
+      "effect": "deployIfNotExists",
+      "details": {
+        "type": "Microsoft.Network/networkSecurityGroups",
+        "existenceCondition": {
+          "allOf": [
+            {
+              "field": "Microsoft.Network/networkSecurityGroups/securityRules[*].name",
+              "in": [
+                "blocksshrdp-denyrule22-3389"
+              ]
+            }
+          ]
+        },
+        "deployment": {
+          "properties": {
+            "mode": "incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {
+                "nsgName": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "The name of the Network Security Group"
+                  }
+                }
+              },
+              "resources": [
+                {
+                  "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                  "apiVersion": "2024-05-01",
+                  "name": "[concat(parameters('nsgName'), '/blocksshrdp-denyrule22-3389')]",
+                  "properties": {
+                    "protocol": "TCP",
+                    "sourcePortRange": "*",
+                    "sourceAddressPrefix": "*",
+                    "destinationAddressPrefix": "*",
+                    "access": "Deny",
+                    "priority": 200,
+                    "direction": "Outbound",
+                    "sourcePortRanges": [],
+                    "destinationPortRanges": [
+                      "22",
+                      "3389"
+                    ],
+                    "sourceAddressPrefixes": [],
+                    "destinationAddressPrefixes": []
+                  }
+                }
+              ]
+            },
+            "parameters": {
+              "nsgName": {
+                "value": "[field('name')]"
+              }
+            }
+          }
+        },
+        "roleDefinitionIds": [
+          "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+        ]
+      }
+    }
+  },
+  "parameters": {}
+}
