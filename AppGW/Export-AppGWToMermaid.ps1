@@ -17,6 +17,12 @@ function AzLogin {
     Write-Output $context
 }
 
+function addIcons {
+    $Script:mermaid += 'RG@{ icon: "azure:resource-groups", pos: "b"};'
+    $Script:mermaid += 'AppGW@{ icon: "azure:application-gateways", pos: "b"};'
+    $Script:mermaid += 'Loc@{ icon: "azure:location", pos: "b"};'
+}
+
 function addAppGWConfig {
     $Script:mermaid += "AppGW[Application Gateway:<br />$($AppGW.Name)<br />$($AppGW.Sku.Tier)<br />$http2<br />$fips<br />$zones<br />$($AppGW.OperationalState)<br />$($AppGW.ProvisioningState)] --> AppGWPublic;`n"
     $Script:mermaid += "AppGW[Application Gateway:<br />$($AppGW.Name)<br />$($AppGW.Sku.Tier)<br />$http2<br />$fips<br />$zones<br />$($AppGW.OperationalState)<br />$($AppGW.ProvisioningState)] --> AppGWPrivate;`n"
@@ -84,6 +90,7 @@ $http2 = "HTTP2: False";if ($AppGW.EnableHttp2){$http2 = "HTTP2: True"}
 $fips = "FIPS: False";if ($AppGW.EnableFips){$fips = "FIPS: True"}
 $zones = "Zones: False";if ($AppGW.Zones){$zones = "Zones: True"}
 
+addIcons
 addAppGWConfig
 addFrontendConfig
 addListenerConfig
