@@ -1,0 +1,1 @@
+az deployment group create --resource-group "northcentralusrg" --template-file "main.bicep"
