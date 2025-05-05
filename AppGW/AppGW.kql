@@ -1,0 +1,13 @@
+resources
+    | where type has 'microsoft.network/applicationGateways'
+    | project agId = id, agName = name,
+        agState = properties.operationalState,
+        agTier = properties.sku.tier,
+        agRootCert = properties.trustedRootCertificates,
+        agIp = properties.frontendIPConfigurations,
+        agPools = properties.backendAddressPools
+    | mv-expand agIp
+    | extend privateIp = tostring(agIp.properties.privateIPAddress)
+    | mv-expand  agRootCert
+    | extend rootCert = tostring(agRootCert.name)
+    | project agId, agName, agTier, agState, rootCert, privateIp, agPools
