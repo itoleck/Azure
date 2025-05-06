@@ -5,3 +5,4 @@ Entra/ApplicationSecretExpirationSolution/typescripttest.js
 Templates/TemplateSpecs/Example.ps1
 Templates/TemplateSpecs/ShowTempSpec.ps1
 Templates/Bicep/domainjoin/deploy.ps1
+Templates/Bicep/domainjoin/dumb.json

@@ -1,19 +1,16 @@
+
 param vmName string
 param domainToJoin string
 param domainUsername string
 param ouPath string
-param domainJoinOptions int = 3 // Modify as needed
-param keyVaultName string
-param secretName string
+param domainJoinOptions string = '3'
 
-resource kv 'Microsoft.KeyVault/vaults@2021-06-01' existing = {
-  name: keyVaultName
-}
+@secure()
+param domainJoinPassword string
 
 resource domainJoinExtension 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = {
   name: '${vmName}/joindomain'
-  location: location
-  parent: vm
+  location: resourceGroup().location
   properties: {
     publisher: 'Microsoft.Compute'
     type: 'JsonADDomainExtension'
@@ -22,12 +19,13 @@ resource domainJoinExtension 'Microsoft.Compute/virtualMachines/extensions@2021-
     settings: {
       Name: domainToJoin
       OUPath: ouPath
-      User: '${domainToJoin}\\${domainUsername}'
-      Restart: true
+      User: domainUsername
+      Password: ''
+      Restart: 'true'
       Options: domainJoinOptions
     }
     protectedSettings: {
-      Password: kv.getSecret(secretName)
+      Password: domainJoinPassword
     }
   }
 }
