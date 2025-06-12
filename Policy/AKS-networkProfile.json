@@ -1,0 +1,44 @@
+{
+    "displayName": "Azure Kubernetes Clusters should use Cilium network",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "description": "This policy ensures that Azure Kubernetes Service clusters use Cilium as the network dataplane and network policy. Cilium provides advanced networking and security capabilities for containerized workloads.",
+    "metadata": {
+        "version": "1.0.0",
+        "category": "Kubernetes"
+    },
+    "parameters": {},
+    "policyRule": {
+        "if": {
+            "allOf": [
+                {
+                    "field": "type",
+                    "equals": "Microsoft.ContainerService/managedClusters"
+                },
+                {
+                    "anyOf": [
+                        {
+                            "field": "Microsoft.ContainerService/managedClusters/networkProfile.networkDataplane",
+                            "notEquals": "cilium"
+                        },
+                        {
+                            "field": "Microsoft.ContainerService/managedClusters/networkProfile.networkPolicy",
+                            "notEquals": "cilium"
+                        },
+                        {
+                            "field": "Microsoft.ContainerService/managedClusters/networkProfile.networkDataplane",
+                            "exists": false
+                        },
+                        {
+                            "field": "Microsoft.ContainerService/managedClusters/networkProfile.networkPolicy",
+                            "exists": false
+                        }
+                    ]
+                }
+            ]
+        },
+        "then": {
+            "effect": "Deny"
+        }
+    }
+}
