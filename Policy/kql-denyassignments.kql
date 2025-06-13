@@ -1,9 +1,12 @@
-// Works, but ugly
+// Works with Azure Resource Graph Explorer
 policyresources
     | where type =~ "microsoft.authorization/policyassignments"
     | extend params = todynamic(properties.parameters)
     | extend effect = tostring(params.effect)
+    | extend scope = tostring(properties.scope)
+    | extend displayname = tostring(properties.displayName)
     | where effect == '{"value":"Deny"}'
+    | project id, subscriptionId, scope, displayname
 
 
 policyresources
@@ -18,18 +21,4 @@ policyresources
 | project policyName, assignedTo, effect
 
 
-// PowerShell
-$assignments = Get-AzPolicyAssignment
-foreach ($assignment in $assignments) {
-    $definition = Get-AzPolicyDefinition -Id $assignment.PolicyDefinitionId
-    $effect = $definition.Properties.PolicyRule.then.effect
-    [PSCustomObject]@{
-        PolicyName  = $assignment.Name
-        AssignedTo  = $assignment.Scope
-        Effect      = $effect
-    }
-}
 
-
-// Azure CLI
-az policy assignment list --query "[].{PolicyName:name, AssignedTo:scope, PolicyDefinitionId:policyDefinitionId}" -o table
