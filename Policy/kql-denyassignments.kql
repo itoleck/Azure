@@ -1,0 +1,5 @@
+policyresources
+    | where type =~ "microsoft.authorization/policyassignments"
+    | extend params = todynamic(properties.parameters)
+    | extend effect = tostring(params.effect)
+    | where effect == '{"value":"Deny"}'
