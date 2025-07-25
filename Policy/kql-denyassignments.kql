@@ -1,13 +1,13 @@
 // Works with Azure Resource Graph Explorer
 policyresources
-    | where type =~ "microsoft.authorization/policyassignments"
+    | where type =~ "microsoft.authorization/policyassignments" and subscriptionId == "00000-0000-0000-0000-000000000000" // Replace with your Subscription ID
     | extend params = todynamic(properties.parameters)
     | extend effect = tostring(params.effect)
     | extend scope = tostring(properties.scope)
     | extend displayname = tostring(properties.displayName)
     | where effect == '{"value":"Deny"}'
     | project id, subscriptionId, scope, displayname
-
+//  | where scope contains "00000-0000-0000-0000-000000000000" // Replace with your Management Group ID
 
 policyresources
 | where type == "microsoft.authorization/policyassignments"

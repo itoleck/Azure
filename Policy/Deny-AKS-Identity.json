@@ -1,0 +1,26 @@
+{
+    "properties": {
+      "displayName": "Deny AKS creation without User Assigned Identity",
+      "description": "This policy denies the creation of Azure Kubernetes Service clusters if no User Assigned Identity is specified.",
+      "mode": "All",
+      "policyRule": {
+        "if": {
+          "allOf": [
+            {
+              "field": "type",
+              "equals": "Microsoft.ContainerService/managedClusters"
+            },
+            {
+              "not": {
+                "field": "identity.type",
+                "equals": "UserAssigned"
+              }
+            }
+          ]
+        },
+        "then": {
+          "effect": "deny"
+        }
+      }
+    }
+  }
