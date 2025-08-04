@@ -1,0 +1,1 @@
+az ts show --resource-group "southcentralusRG" --name "storageSpec" --version "1.0a" --query "id"
