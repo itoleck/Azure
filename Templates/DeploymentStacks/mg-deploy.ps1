@@ -44,7 +44,7 @@ param(
 
     [Parameter(Mandatory=$true)]
     [ValidateSet("none")]   #, "denyDelete", "denyWriteAndDelete"
-    [string]$DenySettingsMode, #Can only be 'none' for Management Group deployment stacks {"code": "DeploymentStackInvalidDeploymentStackDefinition", "message": "The deployment stack '' is invalid, because deny assignments are only supported for deployments at subscription scope."}
+    [string]$DenySettingsMode = 'none', #Can only be 'none' for Management Group deployment stacks {"code": "DeploymentStackInvalidDeploymentStackDefinition", "message": "The deployment stack '' is invalid, because deny assignments are only supported for deployments at subscription scope."}
     
     [Parameter(Mandatory=$true)]
     [ValidateSet("detachAll", "deleteAll", "deleteResources")]
@@ -57,7 +57,7 @@ az stack mg create `
     -n $StackName `
     -f $($TemplatePath) `
     --location $($Location) `
-    --parameters subscriptionID=$($SubscriptionID) `
+    --subscriptionID=$($SubscriptionID) `
     --deny-settings-mode $($DenySettingsMode) `
     --aou $($ActionOnUnmanage) `
     --deny-settings-excluded-actions $($DenySettingsExcludedActions) `
