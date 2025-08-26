@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Snake Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: black;
+        }
+        canvas {
+            display: block;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #0F0;
+            font-family: monospace;
+            font-size: 20px;
+        }
+        #title {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            color: #0F0;
+            font-family: monospace;
+            font-size: 32px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="score">Score: 0</div>
+    <div id="title">Matrix Snake</div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const initialYOffset = 0;
+
+        // Resize canvas to full screen
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Matrix effect setup
+        const matrixChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:",./<>?'.split('');
+        const fontSize = 14;
+        const columns = Math.floor(canvas.width / fontSize);
+        let drops = Array(columns).fill(1);
+
+        // Snake game setup
+        const blockSize = 20;
+        let snake = [{ x: Math.floor(columns / 2) * blockSize, y: Math.floor(canvas.height / (2 * blockSize)) * blockSize }];
+        let food = { x: Math.floor(Math.random() * (canvas.width / blockSize)) * blockSize, y: Math.floor(Math.random() * (canvas.height / blockSize)) * blockSize };
+        let velocity = { x: 0, y: 0 };
+        let score = 0;
+        let gameOver = false;
+        let matrixSpeed = .5;
+
+        // Handle keyboard input for snake direction
+        document.addEventListener('keydown', (e) => {
+            if (gameOver) return;
+            switch (e.key) {
+                case 'ArrowUp': if (velocity.y === 0) { velocity = { x: 0, y: -.1 }; } break;
+                case 'ArrowDown': if (velocity.y === 0) { velocity = { x: 0, y: .1 }; } break;
+                case 'ArrowLeft': if (velocity.x === 0) { velocity = { x: -.1, y: 0 }; } break;
+                case 'ArrowRight': if (velocity.x === 0) { velocity = { x: .1, y: 0 }; } break;
+            }
+        });
+
+        function updateSnake() {
+            if (gameOver) return;
+
+            // Move snake
+            const head = { x: snake[0].x + velocity.x * blockSize, y: snake[0].y + velocity.y * blockSize };
+
+            // Check wall collision
+            if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) {
+                gameOver = true;
+                return;
+            }
+
+            // Check self collision
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    gameOver = true;
+                    return;
+                }
+            }
+
+            snake.unshift(head);
+
+            // Check food collision
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                scoreElement.textContent = `Score: ${score}`;
+                // Place new food
+                food = {
+                    x: Math.floor(Math.random() * (canvas.width / blockSize)) * blockSize,
+                    y: Math.floor(Math.random() * (canvas.height / blockSize)) * blockSize
+                };
+            } else {
+                snake.pop();
+            }
+        }
+
+        function drawMatrix() {
+            // Semi-transparent black overlay for fading effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw falling characters
+            ctx.fillStyle = '#0F0'; // Green color
+            ctx.font = `${fontSize}px monospace`;
+            for (let i = 0; i < drops.length; i++) {
+    const text = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+    ctx.fillText(text, i * fontSize, (drops[i] * matrixSpeed) * fontSize);
+    if ((drops[i] * matrixSpeed) * fontSize > canvas.height && Math.random() > 0.99) {
+        drops[i] = 0;
+    }
+    drops[i]++;
+}
+        }
+
+        function drawSnake() {
+            // Draw snake body
+            ctx.fillStyle = '#00FF00'; // Bright green for snake
+            snake.forEach(segment => {
+                ctx.fillRect(segment.x, segment.y, blockSize, blockSize);
+            });
+
+            // Draw food as a red block (or could be a matrix char, but keeping simple)
+            ctx.fillStyle = '#FF0000';
+            ctx.fillRect(food.x, food.y, blockSize, blockSize);
+
+            // If game over, display message
+            if (gameOver) {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '30px monospace';
+                ctx.fillText('Game Over! Refresh to restart.', canvas.width / 2 - 200, canvas.height / 2);
+            }
+        }
+
+        function gameLoop() {
+            // Recalculate columns if resized
+            if (columns !== Math.floor(canvas.width / fontSize)) {
+                drops = Array(Math.floor(canvas.width / fontSize)).fill(1);
+            }
+
+            drawMatrix();
+            updateSnake();
+            drawSnake();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
