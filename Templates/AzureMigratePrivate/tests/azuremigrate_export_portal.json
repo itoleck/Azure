@@ -1,0 +1,208 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "resources": [
+        {
+            "type": "Microsoft.Migrate/MigrateProjects",
+            "apiVersion": "2020-06-01-preview",
+            "name": "azmigprivportal",
+            "location": "centralus",
+            "dependsOn": [],
+            "tags": {
+                "Migrate Project": "azmigprivportal"
+            },
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "publicNetworkAccess": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Migrate/MigrateProjects/Solutions",
+            "apiVersion": "2020-06-01-preview",
+            "name": "azmigprivportal/Servers-Assessment-ServerAssessment",
+            "dependsOn": [
+                "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Migrate/MigrateProjects/azmigprivportal"
+            ],
+            "properties": {
+                "tool": "ServerAssessment",
+                "purpose": "Assessment",
+                "goal": "Servers",
+                "status": "Active",
+                "details": null
+            }
+        },
+        {
+            "type": "Microsoft.Migrate/MigrateProjects/Solutions",
+            "apiVersion": "2020-06-01-preview",
+            "name": "azmigprivportal/Servers-Discovery-ServerDiscovery",
+            "dependsOn": [
+                "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Migrate/MigrateProjects/azmigprivportal/Solutions/Servers-Assessment-ServerAssessment"
+            ],
+            "properties": {
+                "tool": "ServerDiscovery",
+                "purpose": "Discovery",
+                "goal": "Servers",
+                "status": "Inactive",
+                "details": null
+            }
+        },
+        {
+            "type": "Microsoft.Migrate/MigrateProjects/Solutions",
+            "apiVersion": "2020-06-01-preview",
+            "name": "azmigprivportal/Servers-Migration-ServerMigration",
+            "dependsOn": [
+                "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Migrate/MigrateProjects/azmigprivportal/Solutions/Servers-Discovery-ServerDiscovery"
+            ],
+            "properties": {
+                "tool": "ServerMigration",
+                "purpose": "Migration",
+                "goal": "Servers",
+                "status": "Active",
+                "details": null
+            }
+        },
+        {
+            "type": "Microsoft.Migrate/MigrateProjects/Solutions",
+            "apiVersion": "2020-06-01-preview",
+            "name": "azmigprivportal/Servers-Migration-ServerMigration_DataReplication",
+            "dependsOn": [
+                "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Migrate/MigrateProjects/azmigprivportal/Solutions/Servers-Migration-ServerMigration"
+            ],
+            "properties": {
+                "tool": "ServerMigration_DataReplication",
+                "purpose": "Migration",
+                "goal": "Servers",
+                "status": "Inactive",
+                "details": null
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2017-05-10",
+            "name": "Microsoft.MigrateV2.CreatePE-migrate-2025823153314",
+            "dependsOn": [
+                "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Migrate/MigrateProjects/azmigprivportal"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "apiVersion": "2020-05-01",
+                            "name": "azmigprivportal2055pe",
+                            "type": "Microsoft.Network/privateEndpoints",
+                            "properties": {
+                                "privateLinkServiceConnections": [
+                                    {
+                                        "name": "azmigprivportal2055pe",
+                                        "properties": {
+                                            "privateLinkServiceId": "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Migrate/MigrateProjects/azmigprivportal",
+                                            "groupIds": [
+                                                "Default"
+                                            ]
+                                        }
+                                    }
+                                ],
+                                "subnet": {
+                                    "id": "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Network/virtualNetworks/migrate-vnet/subnets/PrivateEndpointSubnet"
+                                }
+                            },
+                            "dependsOn": [],
+                            "location": "centralus",
+                            "tags": {
+                                "MigrateProject": "azmigprivportal"
+                            }
+                        },
+                        {
+                            "apiVersion": "2018-09-01",
+                            "name": "privatelink.prod.migration.windowsazure.com",
+                            "type": "Microsoft.Network/privateDnsZones",
+                            "properties": {},
+                            "dependsOn": [
+                                "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Network/privateEndpoints/azmigprivportal2055pe"
+                            ],
+                            "location": "global"
+                        },
+                        {
+                            "apiVersion": "2018-09-01",
+                            "name": "privatelink.prod.migration.windowsazure.com/migrate-vnet8850vnetlink",
+                            "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+                            "properties": {
+                                "virtualNetwork": {
+                                    "id": "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Network/virtualNetworks/migrate-vnet"
+                                },
+                                "registrationEnabled": false
+                            },
+                            "dependsOn": [
+                                "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Network/privateDnsZones/privatelink.prod.migration.windowsazure.com"
+                            ],
+                            "location": "global"
+                        },
+                        {
+                            "apiVersion": "2020-05-01",
+                            "name": "azmigprivportal2055pe/azmigprivportal2055dnszonegroup",
+                            "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+                            "properties": {
+                                "privateDnsZoneConfigs": [
+                                    {
+                                        "name": "privatelink.prod.migration.windowsazure.com",
+                                        "properties": {
+                                            "privateDnsZoneId": "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Network/privateDnsZones/privatelink.prod.migration.windowsazure.com"
+                                        }
+                                    }
+                                ]
+                            },
+                            "dependsOn": [
+                                "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Network/privateEndpoints/azmigprivportal2055pe",
+                                "/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Network/privateDnsZones/privatelink.prod.migration.windowsazure.com"
+                            ],
+                            "location": "centralus"
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "subscriptionid",
+            "resourceGroup": "USCentralRG"
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2017-05-10",
+            "name": "Microsoft.MigrateV2.UpdateSDSSolutionData-2025823153314",
+            "dependsOn": [
+                "Microsoft.MigrateV2.CreatePE-migrate-2025823153314"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "resources": [
+                        {
+                            "apiVersion": "2020-06-01-preview",
+                            "name": "azmigprivportal/Servers-Discovery-ServerDiscovery",
+                            "type": "Microsoft.Migrate/MigrateProjects/Solutions",
+                            "properties": {
+                                "tool": "ServerDiscovery",
+                                "purpose": "Discovery",
+                                "goal": "Servers",
+                                "status": "Inactive",
+                                "details": {
+                                    "extendedDetails": {
+                                        "privateEndpointDetails": "{\"subnetId\":\"/subscriptions/subscriptionid/resourceGroups/USCentralRG/providers/Microsoft.Network/virtualNetworks/migrate-vnet/subnets/PrivateEndpointSubnet\",\"virtualNetworkLocation\":\"centralus\",\"skipPrivateDnsZoneCreation\":false}"
+                                    }
+                                }
+                            },
+                            "dependsOn": []
+                        }
+                    ]
+                }
+            },
+            "subscriptionId": "subscriptionid",
+            "resourceGroup": "USCentralRG"
+        }
+    ]
+}
