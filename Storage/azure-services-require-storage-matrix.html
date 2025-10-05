@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Services Matrix</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #0078d4 0%, #00bcf2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .controls {
+            padding: 20px 30px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: #0078d4;
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .filter-btn {
+            padding: 10px 20px;
+            border: 2px solid #0078d4;
+            background: white;
+            color: #0078d4;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .filter-btn:hover {
+            background: #0078d4;
+            color: white;
+        }
+        
+        .filter-btn.active {
+            background: #0078d4;
+            color: white;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            padding: 20px 30px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background: #0078d4;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 3px solid #005a9e;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        tbody tr {
+            transition: background-color 0.2s;
+        }
+        
+        tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .category-cell {
+            font-weight: 600;
+            color: #0078d4;
+        }
+        
+        .checkmark {
+            color: #28a745;
+            font-size: 1.4em;
+            text-align: center;
+        }
+        
+        .reason-cell {
+            font-size: 0.9em;
+            color: #555;
+            line-height: 1.5;
+        }
+        
+        .stats {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #0078d4;
+        }
+        
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Microsoft Azure Services Matrix</h1>
+            <p>Storage Account Dependencies & Requirements</p>
+        </div>
+        
+        <div class="controls">
+            <input type="text" class="search-box" id="searchBox" placeholder="Search services...">
+            <div class="filter-group">
+                <button class="filter-btn active" data-filter="all">All Services</button>
+                <button class="filter-btn" data-filter="required">Storage Required</button>
+                <button class="filter-btn" data-filter="not-required">No Storage</button>
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <table id="servicesTable">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Service Name</th>
+                        <th style="text-align: center;">Customer Blob/File/Table/Queue Storage Account Required at Setup</th>
+                        <th>Reason for Storage Connection</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Data will be inserted here -->
+                </tbody>
+            </table>
+            <div id="noResults" class="no-results" style="display: none;">
+                No services match your search criteria
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="totalServices">0</div>
+                <div class="stat-label">Total Services</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="storageRequired">0</div>
+                <div class="stat-label">Storage Required</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="noStorage">0</div>
+                <div class="stat-label">No Storage Needed</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const services = [
+            
+            // AI + Machine Learning
+            {category: 'AI + ML', name: 'AI Bot Service', required: false, reason: 'No storage dependency to create'},
+            {category: 'AI + ML', name: 'Azure AI Foundry', required: false, reason: 'No storage dependency to create'},
+            {category: 'AI + ML', name: 'Anomaly Detector', required: false, reason: 'No storage dependency to create'},
+            {category: 'AI + ML', name: 'Content Safety', required: false, reason: 'No storage dependency to create'},
+            {category: 'AI + ML', name: 'Databricks', required: false, reason: 'Can connect to managed disks while creating'},
+            {category: 'AI + ML', name: 'Document Intelligence', required: false, reason: 'No storage dependency to create'},
+            {category: 'AI + ML', name: 'Machine Learning', required: true, reason: 'Standard storage account needed to create'},
+            {category: 'AI + ML', name: 'Synapse Analytics', required: true, reason: 'Data Lake Storage Gen2 needed to create'},
+            {category: 'AI + ML', name: 'Video Indexer', required: true, reason: 'Storage account needed for existing content'},
+
+            // Analytics
+            {category: 'Analytics', name: 'Analysis Services', required: true, reason: 'Stores model backups and diagnostic logs'},
+            {category: 'Analytics', name: 'Chaos Studio', required: false, reason: 'No storage dependency to create'},
+            {category: 'Analytics', name: 'Data Explorer (Kusto)', required: false, reason: 'Can be used to store continuous export data and external tables'},
+            {category: 'Analytics', name: 'Data Factory', required: false, reason: 'Can store pipeline artifacts, staging data, and integration runtime logs and connect to storage account data'},
+            {category: 'Analytics', name: 'Data Lake', required: true, reason: 'Storage Account needed'},
+            {category: 'Analytics', name: 'HDInsight', required: true, reason: 'Stores cluster data, logs, and default file system'},
+            {category: 'Analytics', name: 'Event Hubs', required: false, reason: 'No storage dependency to create'},
+            {category: 'Analytics', name: 'Stream Analytics', required: false, reason: 'No storage dependency to create cluster'},
+            {category: 'Analytics', name: 'Purview', required: false, reason: ''},
+            {category: 'Analytics', name: 'Power BI Embedded', required: false, reason: 'Uses Power BI service storage, not direct storage account'},
+            
+            // Compute
+            {category: 'Compute', name: 'App Service', required: false, reason: 'Stores deployment packages, application logs, and backups'},
+            {category: 'Compute', name: 'Batch', required: false, reason: 'No storage dependency to create but can store input/output data, task files, and application packages'},
+            {category: 'Compute', name: 'Functions', required: true, reason: 'Stores function code, triggers, bindings, and execution logs'},
+            {category: 'Compute', name: 'Quantum', required: false, reason: ''},
+            
+            {category: 'Compute', name: 'Spring Apps', required: false, reason: ''},
+            {category: 'Compute', name: 'AVS', required: false, reason: ''},
+            {category: 'Compute', name: 'Compute Fleet', required: false, reason: ''},
+            
+            {category: 'Compute', name: 'Dedicated Host', required: false, reason: ''},
+            
+            {category: 'Compute', name: 'Service Fabric', required: false, reason: ''},
+            {category: 'Compute', name: 'Static Web Apps', required: true, reason: 'Stores static content, application files, and build artifacts'},
+            {category: 'Compute', name: 'Azure Virtual Desktop', required: true, reason: 'Stores user profiles (FSLogix), application packages, and MSIX images'},
+            {category: 'Compute', name: 'Virtual Machines', required: false, reason: 'Can be used for boot diagnostics logs, and custom scripts'},
+            {category: 'Compute', name: 'Virtual Machine Scale Sets', required: false, reason: 'Can be used to store diagnostics logs, and custom scripts'},
+            
+            // Containers
+            {category: 'Containers', name: 'App Configuration', required: false, reason: 'Can import/export configurations to blob storage'},
+            {category: 'Containers', name: 'OpenShift', required: false, reason: ''},
+            {category: 'Containers', name: 'Container Apps', required: false, reason: ''},
+            {category: 'Containers', name: 'Container Instances', required: true, reason: 'Mounts file shares for persistent storage and stores container logs'},
+            {category: 'Containers', name: 'Container Registry', required: false, reason: ''},
+            {category: 'Containers', name: 'Kubernetes Service (AKS)', required: false, reason: 'Can be used to store persistent volumes, container images, and logs'},
+            {category: 'Containers', name: 'Kubernetes Fleet', required: false, reason: ''},
+
+            // Databases
+            {category: 'Databases', name: 'Cosmos DB', required: false, reason: 'Can be used to store backups and analytical data via Azure Synapse Link'},
+            {category: 'Databases', name: 'Data Factory', required: false, reason: ''},
+            {category: 'Databases', name: 'Database for PostgreSQL', required: false, reason: ''},
+            {category: 'Databases', name: 'Database for MySQL', required: false, reason: ''},
+            {category: 'Databases', name: 'Database for MariaDB', required: false, reason: ''},
+            {category: 'Databases', name: 'Cache for Redis', required: false, reason: ''},
+            {category: 'Databases', name: 'SQL Database', required: false, reason: 'Can be used to store backups, audit logs, and long-term retention data'},
+            {category: 'Databases', name: 'SQL Managed Instance', required: false, reason: ''},
+            {category: 'Databases', name: 'SQL Server on VMs', required: false, reason: 'Uses VM storage for data files and backups'},
+
+            // DevOps
+            {category: 'DevOps', name: 'API Center', required: false, reason: ''},
+            {category: 'DevOps', name: 'App Configuration', required: false, reason: ''},
+            {category: 'DevOps', name: 'App Testing', required: false, reason: ''},
+            {category: 'DevOps', name: 'Artifacts', required: false, reason: 'No storage dependency'},
+            {category: 'DevOps', name: 'Boards', required: false, reason: ''},
+            {category: 'DevOps', name: 'DevOps', required: false, reason: 'Can be used to store artifacts, test results, and pipeline logs'},
+            {category: 'DevOps', name: 'DevTest Labs', required: false, reason: ''},
+            {category: 'DevOps', name: 'Load Testing', required: false, reason: 'No storage dependency'},
+            {category: 'DevOps', name: 'Dev Box', required: false, reason: ''},
+            {category: 'DevOps', name: 'Playwright Testing', required: false, reason: ''},
+
+            // Identity
+            {category: 'Identity', name: 'Entra ID', required: false, reason: 'Identity service with its own backend storage'},
+            {category: 'Identity', name: 'Information Protection', required: false, reason: 'Document protection service without storage dependency'},
+            
+
+            // Integration
+            {category: 'Integration', name: 'API Management', required: false, reason: 'Only for backup and logging'},
+            {category: 'Integration', name: 'Event Grid', required: false, reason: 'Can publish and subscribe to topics without storage'},
+            {category: 'Integration', name: 'Logic Apps', required: true, reason: 'Stores workflow artifacts, run history, and connector data'},
+            {category: 'Integration', name: 'Service Bus', required: false, reason: 'No storage dependency'},
+            
+            // IoT
+            {category: 'IoT', name: 'IoT Hub/IoT Central', required: false, reason: 'Required for file uploads and routing telemetry to storage'},
+            {category: 'IoT', name: 'Digital Twins', required: false, reason: 'No storage dependency'},
+            {category: 'IoT', name: 'Azure Sphere', required: false, reason: 'Device security service without direct storage dependency'},
+            {category: 'IoT', name: 'IoT Edge', required: false, reason: 'No storage dependency'},
+
+            // Management & Governance
+            {category: 'Management', name: 'Automation', required: false, reason: 'Can be used to store runbooks, DSC configurations, and job outputs'},
+            {category: 'Management', name: 'Backup', required: false, reason: 'No storage dependency'},
+            {category: 'Management', name: 'Backup - Vaulted', required: true, reason: 'Stores backup data in Recovery Services vaults backed by storage'},
+            {category: 'Management', name: 'Azure Policy', required: false, reason: 'Policy enforcement service without storage dependency'},
+            {category: 'Management', name: 'Cloud Shell', required: false, reason: 'Can be used to mounts file share for persistent shell storage'},
+            {category: 'Management', name: 'Cost Management', required: false, reason: 'Billing analytics service without storage dependency'},
+            {category: 'Management', name: 'Azure Monitor', required: false, reason: 'Can be used to store logs, metrics, and diagnostic data'},
+            {category: 'Management', name: 'Site Recovery', required: false, reason: 'No storage dependency. Stores replicated data in Managed Disk'},
+
+            // Migration
+            {category: 'Migration', name: 'Azure Migrate', required: false, reason: 'No storage dependency'},
+            {category: 'Migration', name: 'Data Box', required: true, reason: 'Transfers data to/from storage accounts'},
+            {category: 'Migration', name: 'Database Migration Service', required: false, reason: 'No storage dependency'},
+
+            // Mixed Reality
+            {category: 'Mixed Reality', name: 'Digital Twins', required: false, reason: 'No storage dependency'},
+            {category: 'Mixed Reality', name: 'Remote Rendering', required: true, reason: 'Stores 3D models and rendering assets'},
+
+            // Networking
+            {category: 'Networking', name: 'Application Gateway / WAF', required: false, reason: 'No storage dependency'},
+            {category: 'Networking', name: 'Azure Bastion', required: false, reason: 'Managed jump host service without storage dependency'},
+            {category: 'Networking', name: 'Azure DNS', required: false, reason: 'Managed DNS service without storage dependency'},
+            {category: 'Networking', name: 'Azure Firewall', required: false, reason: 'No storage dependency'},
+            {category: 'Networking', name: 'Front Door', required: false, reason: 'No storage dependency'},
+            {category: 'Networking', name: 'Load Balancer', required: false, reason: 'Traffic distribution service without storage dependency'},
+            {category: 'Networking', name: 'Network Watcher', required: false, reason: 'No storage dependency. Can store flow logs.'},
+            {category: 'Networking', name: 'Route Server', required: false, reason: ''},
+            {category: 'Networking', name: 'Traffic Manager', required: false, reason: 'DNS-based traffic routing without storage dependency'},
+            {category: 'Networking', name: 'Virtual Network', required: false, reason: 'Networking service without storage dependency'},
+            {category: 'Networking', name: 'VPN Gateway', required: false, reason: 'No storage dependency'},
+            {category: 'Networking', name: 'Virtual WAN', required: false, reason: ''},
+            {category: 'Networking', name: 'ExpressRoute', required: false, reason: 'No storage dependency'},
+            
+            // Security
+            {category: 'Security', name: 'Key Vault', required: false, reason: 'No storage dependency. Can store backup/restore data and audit logs'},
+            {category: 'Security', name: 'DDoS Protection', required: false, reason: 'Can store attack analytics and diagnostic logs'},
+            {category: 'Security', name: 'Security Center / Defender for Cloud', required: false, reason: 'No storage dependency'},
+            {category: 'Security', name: 'Sentinel', required: false, reason: ''},
+
+            // Storage
+            {category: 'Storage', name: 'Blob Storage', required: false, reason: 'This IS a storage account service'},
+            {category: 'Storage', name: 'File Storage', required: false, reason: 'This IS a storage account service'},
+            {category: 'Storage', name: 'Queue Storage', required: false, reason: 'This IS a storage account service'},
+            {category: 'Storage', name: 'Table Storage', required: false, reason: 'This IS a storage account service'},
+            {category: 'Storage', name: 'Disk Storage', required: false, reason: 'Managed independently, though integrates with VM storage'},
+            {category: 'Storage', name: 'Data Lake Storage Gen2', required: false, reason: 'Built on blob storage but is itself the storage service'},
+            {category: 'Storage', name: 'Azure NetApp Files', required: false, reason: 'Standalone enterprise file storage service'},
+            {category: 'Storage', name: 'Azure HPC Cache', required: true, reason: 'Caches data from blob storage and on-premises NAS'},
+            {category: 'Storage', name: 'Elastic SAN', required: false, reason: ''},
+
+            // Web
+            {category: 'Web', name: 'SignalR Service', required: false, reason: 'Real-time messaging service without storage dependency'},
+            {category: 'Web', name: 'Notification Hubs', required: false, reason: 'Push notification service without storage dependency'},
+            {category: 'Web', name: 'Azure Maps', required: false, reason: 'Mapping service with its own backend storage'},
+            
+        ];
+
+        let filteredServices = [...services];
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            const noResults = document.getElementById('noResults');
+            tbody.innerHTML = '';
+
+            if (filteredServices.length === 0) {
+                noResults.style.display = 'block';
+                return;
+            }
+
+            noResults.style.display = 'none';
+
+            filteredServices.forEach(service => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td class="category-cell">${service.category}</td>
+                    <td><strong>${service.name}</strong></td>
+                    <td class="checkmark">${service.required ? '✓' : '—'}</td>
+                    <td class="reason-cell">${service.reason}</td>
+                `;
+            });
+
+            updateStats();
+        }
+
+        function updateStats() {
+            const total = filteredServices.length;
+            const required = filteredServices.filter(s => s.required).length;
+            const notRequired = total - required;
+
+            document.getElementById('totalServices').textContent = total;
+            document.getElementById('storageRequired').textContent = required;
+            document.getElementById('noStorage').textContent = notRequired;
+        }
+
+        document.getElementById('searchBox').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
+            
+            filteredServices = services.filter(service => {
+                const matchesSearch = service.name.toLowerCase().includes(searchTerm) ||
+                                     service.category.toLowerCase().includes(searchTerm) ||
+                                     service.reason.toLowerCase().includes(searchTerm);
+                
+                const matchesFilter = activeFilter === 'all' ||
+                                     (activeFilter === 'required' && service.required) ||
+                                     (activeFilter === 'not-required' && !service.required);
+                
+                return matchesSearch && matchesFilter;
+            });
+            
+            renderTable();
+        });
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+                const filter = e.target.dataset.filter;
+                
+                filteredServices = services.filter(service => {
+                    const matchesSearch = service.name.toLowerCase().includes(searchTerm) ||
+                                         service.category.toLowerCase().includes(searchTerm) ||
+                                         service.reason.toLowerCase().includes(searchTerm);
+                    
+                    const matchesFilter = filter === 'all' ||
+                                         (filter === 'required' && service.required) ||
+                                         (filter === 'not-required' && !service.required);
+                    
+                    return matchesSearch && matchesFilter;
+                });
+                
+                renderTable();
+            });
+        });
+
+        renderTable();
+    </script>
+</body>
+</html>
