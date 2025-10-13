@@ -1,0 +1,52 @@
+/*
+@TargetNode='localhost'
+@GeneratedBy=itole
+@GenerationDate=10/12/2025 16:27:13
+@GenerationHost=5950X
+*/
+
+instance of MSFT_nxFileResource as $MSFT_nxFileResource1ref
+{
+Contents = "# Ubuntu 22.04 LTS (Jammy Jellyfish) - Official Repositories\n\n# Main repository - Officially supported free and open-source software\ndeb http://archive.ubuntu.com/ubuntu/ jammy main restricted universe multiverse\ndeb-src http://archive.ubuntu.com/ubuntu/ jammy main restricted universe multiverse\n\n# Updates - Important security updates\ndeb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse\ndeb-src http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse\n\n# Security updates\ndeb http://security.ubuntu.com/ubuntu/ jammy-security main restricted universe multiverse\ndeb-src http://security.ubuntu.com/ubuntu/ jammy-security main restricted universe multiverse\n\n# Backports - Unsupported updates to newer versions\ndeb http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse\ndeb-src http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse";
+ Force = True;
+ Ensure = "Present";
+ ModuleVersion = "1.0";
+ DestinationPath = "/etc/apt/sources.list";
+ ModuleName = "nx";
+ SourceInfo = "Z:\\_5950x Rebuild\\Source\\Repos\\itoleck\\Azure\\Policy\\MachineConfiguration\\LinuxRepo_Config\\linux_setrepo_ubuntu2204.ps1::7::9::nxFile";
+ ResourceID = "[nxFile]SourcesList";
+ Type = "File";
+ ConfigurationName = "UbuntuDefaultRepositories";
+};
+instance of MSFT_nxScriptResource as $MSFT_nxScriptResource1ref
+{
+ModuleVersion = "1.0";
+ TestScript = "#!/bin/bash\nexit 1";
+ ModuleName = "nx";
+ GetScript = "#!/bin/bash\necho \"Checking apt cache status\"";
+ SourceInfo = "Z:\\_5950x Rebuild\\Source\\Repos\\itoleck\\Azure\\Policy\\MachineConfiguration\\LinuxRepo_Config\\linux_setrepo_ubuntu2204.ps1::34::9::nxScript";
+ ResourceID = "[nxScript]UpdateAptCache";
+ SetScript = "#!/bin/bash\napt-get update";
+
+DependsOn = {
+    "[nxFile]SourcesList"};
+ ConfigurationName = "UbuntuDefaultRepositories";
+};
+instance of OMI_ConfigurationDocument
+
+                    {
+ Version="2.0.0";
+
+                        MinimumCompatibleVersion = "1.0.0";
+
+                        CompatibleVersionAdditionalProperties= {"Omi_BaseResource:ConfigurationName"};
+
+                        Author="itole";
+
+                        GenerationDate="10/12/2025 16:27:13";
+
+                        GenerationHost="5950X";
+
+                        Name="UbuntuDefaultRepositories";
+
+                    };

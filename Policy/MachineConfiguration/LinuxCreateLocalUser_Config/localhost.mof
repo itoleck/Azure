@@ -1,0 +1,38 @@
+/*
+@TargetNode='localhost'
+@GeneratedBy=itole
+@GenerationDate=10/12/2025 16:56:55
+@GenerationHost=5950X
+*/
+
+instance of nxUser as $nxUser1ref
+{
+UserName = "chad";
+ Description = "Created Chad user from Azure Machine Configuration";
+ ModuleVersion = "1.6.0";
+ ModuleName = "nxtools";
+ Ensure = "Present";
+ SourceInfo = "Z:\\_5950x Rebuild\\Source\\Repos\\itoleck\\Azure\\Policy\\MachineConfiguration\\LinuxCreateLocalUser_Config\\createUsernxtools.ps1::28::9::nxUser";
+ HomeDirectory = "/home/chad";
+ ResourceID = "[nxUser]CreateUserTest";
+ FullName = "chad s";
+ ConfigurationName = "CreateUserTest";
+};
+instance of OMI_ConfigurationDocument
+
+                    {
+ Version="2.0.0";
+
+                        MinimumCompatibleVersion = "1.0.0";
+
+                        CompatibleVersionAdditionalProperties= {"Omi_BaseResource:ConfigurationName"};
+
+                        Author="itole";
+
+                        GenerationDate="10/12/2025 16:56:55";
+
+                        GenerationHost="5950X";
+
+                        Name="CreateUserTest";
+
+                    };

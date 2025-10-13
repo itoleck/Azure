@@ -1,0 +1,213 @@
+{
+  "properties": {
+    "displayName": "Deploy Ubuntu 22.04 Repository Configuration to Linux machines",
+    "policyType": "Custom",
+    "mode": "Indexed",
+    "description": "Deploys the Guest Configuration extension and applies Ubuntu 22.04 repository settings to Azure Arc-enabled servers and Azure Virtual Machines running Linux.",
+    "metadata": {
+      "category": "Guest Configuration",
+      "version": "1.0.0"
+    },
+    "parameters": {
+      "IncludeArcMachines": {
+        "type": "String",
+        "metadata": {
+          "displayName": "Include Arc-enabled servers",
+          "description": "By selecting this option, you agree to be charged monthly per Arc-enabled machine."
+        },
+        "allowedValues": [
+          "true",
+          "false"
+        ],
+        "defaultValue": "true"
+      },
+      "effect": {
+        "type": "String",
+        "metadata": {
+          "displayName": "Effect",
+          "description": "Enable or disable the execution of the policy"
+        },
+        "allowedValues": [
+          "DeployIfNotExists",
+          "AuditIfNotExists",
+          "Disabled"
+        ],
+        "defaultValue": "DeployIfNotExists"
+      }
+    },
+    "policyRule": {
+      "if": {
+        "anyOf": [
+          {
+            "allOf": [
+              {
+                "field": "type",
+                "equals": "Microsoft.Compute/virtualMachines"
+              },
+              {
+                "anyOf": [
+                  {
+                    "field": "Microsoft.Compute/virtualMachines/storageProfile.osDisk.osType",
+                    "equals": "Linux"
+                  },
+                  {
+                    "field": "Microsoft.Compute/virtualMachines/osProfile.linuxConfiguration",
+                    "exists": "true"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "value": "[parameters('IncludeArcMachines')]",
+                "equals": "true"
+              },
+              {
+                "anyOf": [
+                  {
+                    "allOf": [
+                      {
+                        "field": "type",
+                        "equals": "Microsoft.HybridCompute/machines"
+                      },
+                      {
+                        "field": "Microsoft.HybridCompute/machines/osName",
+                        "equals": "linux"
+                      }
+                    ]
+                  },
+                  {
+                    "allOf": [
+                      {
+                        "field": "type",
+                        "equals": "Microsoft.ConnectedVMwarevSphere/virtualMachines"
+                      },
+                      {
+                        "field": "Microsoft.ConnectedVMwarevSphere/virtualMachines/osProfile.osType",
+                        "equals": "Linux"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "then": {
+        "effect": "[parameters('effect')]",
+        "details": {
+          "type": "Microsoft.GuestConfiguration/guestConfigurationAssignments",
+          "name": "SetRepoUbuntu2204",
+          "roleDefinitionIds": [
+            "/providers/microsoft.authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+          ],
+          "existenceCondition": {
+            "allOf": [
+              {
+                "field": "Microsoft.GuestConfiguration/guestConfigurationAssignments/complianceStatus",
+                "equals": "Compliant"
+              },
+              {
+                "field": "Microsoft.GuestConfiguration/guestConfigurationAssignments/parameterHash",
+                "equals": "[base64(concat('ContentUri;AssignmentType;', 'https://scusrgdiag.blob.core.windows.net/config/SetRepoUbuntu2204.zip', ';', 'ApplyAndAutoCorrect'))]"
+              }
+            ]
+          },
+          "deployment": {
+            "properties": {
+              "mode": "incremental",
+              "parameters": {
+                "vmName": {
+                  "value": "[field('name')]"
+                },
+                "location": {
+                  "value": "[field('location')]"
+                },
+                "type": {
+                  "value": "[field('type')]"
+                },
+                "configurationName": {
+                  "value": "SetRepoUbuntu2204"
+                }
+              },
+              "template": {
+                "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                "contentVersion": "1.0.0.0",
+                "parameters": {
+                  "vmName": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "configurationName": {
+                    "type": "string"
+                  }
+                },
+                "resources": [
+                  {
+                    "condition": "[equals(toLower(parameters('type')), toLower('Microsoft.Compute/virtualMachines'))]",
+                    "apiVersion": "2018-11-20",
+                    "type": "Microsoft.Compute/virtualMachines/providers/guestConfigurationAssignments",
+                    "name": "[concat(parameters('vmName'), '/Microsoft.GuestConfiguration/', parameters('configurationName'))]",
+                    "location": "[parameters('location')]",
+                    "properties": {
+                      "guestConfiguration": {
+                        "name": "[parameters('configurationName')]",
+                        "contentUri": "https://scusrgdiag.blob.core.windows.net/config/SetRepoUbuntu2204.zip",
+                        "contentHash": "PLACEHOLDER_HASH",
+                        "assignmentType": "ApplyAndAutoCorrect",
+                        "version": "1.0.0",
+                        "configurationParameter": []
+                      }
+                    }
+                  },
+                  {
+                    "condition": "[equals(toLower(parameters('type')), toLower('Microsoft.HybridCompute/machines'))]",
+                    "apiVersion": "2018-11-20",
+                    "type": "Microsoft.HybridCompute/machines/providers/guestConfigurationAssignments",
+                    "name": "[concat(parameters('vmName'), '/Microsoft.GuestConfiguration/', parameters('configurationName'))]",
+                    "location": "[parameters('location')]",
+                    "properties": {
+                      "guestConfiguration": {
+                        "name": "[parameters('configurationName')]",
+                        "contentUri": "https://scusrgdiag.blob.core.windows.net/config/SetRepoUbuntu2204.zip",
+                        "contentHash": "PLACEHOLDER_HASH",
+                        "assignmentType": "ApplyAndAutoCorrect",
+                        "version": "1.0.0",
+                        "configurationParameter": []
+                      }
+                    }
+                  },
+                  {
+                    "condition": "[equals(toLower(parameters('type')), toLower('Microsoft.ConnectedVMwarevSphere/virtualMachines'))]",
+                    "apiVersion": "2018-11-20",
+                    "type": "Microsoft.ConnectedVMwarevSphere/virtualMachines/providers/guestConfigurationAssignments",
+                    "name": "[concat(parameters('vmName'), '/Microsoft.GuestConfiguration/', parameters('configurationName'))]",
+                    "location": "[parameters('location')]",
+                    "properties": {
+                      "guestConfiguration": {
+                        "name": "[parameters('configurationName')]",
+                        "contentUri": "https://scusrgdiag.blob.core.windows.net/config/SetRepoUbuntu2204.zip",
+                        "contentHash": "PLACEHOLDER_HASH",
+                        "assignmentType": "ApplyAndAutoCorrect",
+                        "version": "1.0.0",
+                        "configurationParameter": []
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
