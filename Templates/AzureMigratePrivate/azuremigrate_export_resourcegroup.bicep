@@ -1,181 +1,83 @@
-param virtualNetworks_AzMigrateVNet_name string = 'AzMigrateVNet'
-param migrateProjects_azmigrateCentralProject1_name string = 'azmigrateCentralProject1'
-param privateEndpoints_azmigratecentralproject11004pe_name string = 'azmigratecentralproject11004pe'
+// https://learn.microsoft.com/en-us/azure/templates/microsoft.migrate/allversions?view=migrate
+
+param AzMigrateVNetID string = '/subscriptions/<subid>/resourceGroups/<ResourceGroupName>/providers/Microsoft.Network/virtualNetworks/<VirtualNetworkName>'
+param AzMigrateVNetSubnetName string = '<Subnet Name>'
+param virtualNetworkLocation string = '<VNet Location>'
+param migrateProjects_azmigrateCentralProject1_name string = 'AzMigratePrivate1'
+param privateEndpoints_azmigratecentralproject11004pe_name string = 'AzMigratePrivate1-PE'
+param privateDnsZones_privatelink string = 'AzMigratePrivate1-PL'
 param privateDnsZones_privatelink_prod_migration_windowsazure_com_name string = 'privatelink.prod.migration.windowsazure.com'
-param location string = 'centralus'
+param location string = '<MigrateProjectLocation i.e. centralus>'
 
 resource migrateProjects_azmigrateCentralProject1_name_resource 'Microsoft.Migrate/migrateProjects@2020-05-01' = {
   name: migrateProjects_azmigrateCentralProject1_name
   location: location
-  tags: {
-    'Migrate Project': 'azmigrateCentralProject1'
-  }
   identity: {
     type: 'SystemAssigned'
   }
+  tags: {
+    MigrateProject: migrateProjects_azmigrateCentralProject1_name
+  }
   properties: {
-    registeredTools: [
-      'ServerAssessment'
-      'ServerDiscovery'
-      'ServerMigration'
-    ]
     publicNetworkAccess: 'Disabled'
-    serviceEndpoint: 'https://6f40b3b3-12f5-4b90-acb0-da01addc92b5-isv.wus2.hub.privatelink.prod.migration.windowsazure.com/resources/6f40b3b3-12f5-4b90-acb0-da01addc92b5'
+    serviceEndpoint: ''
   }
 }
 
-resource privateDnsZones_privatelink_prod_migration_windowsazure_com_name_resource 'Microsoft.Network/privateDnsZones@2024-06-01' = {
-  name: privateDnsZones_privatelink_prod_migration_windowsazure_com_name
-  location: 'global'
-  properties: {}
-}
-
-resource virtualNetworks_AzMigrateVNet_name_resource 'Microsoft.Network/virtualNetworks@2024-07-01' = {
-  name: virtualNetworks_AzMigrateVNet_name
-  location: location
-  properties: {
-    addressSpace: {
-      addressPrefixes: [
-        '10.20.0.0/16'
-      ]
-    }
-    encryption: {
-      enabled: false
-      enforcement: 'AllowUnencrypted'
-    }
-    privateEndpointVNetPolicies: 'Disabled'
-    subnets: [
-      {
-        name: 'default'
-        properties: {
-          addressPrefixes: [
-            '10.20.0.0/24'
-          ]
-          delegations: []
-          privateEndpointNetworkPolicies: 'Disabled'
-          privateLinkServiceNetworkPolicies: 'Enabled'
-        }
-      }
-      {
-        name: 'privendpoint'
-        properties: {
-          addressPrefixes: [
-            '10.20.1.0/24'
-          ]
-          delegations: []
-          privateEndpointNetworkPolicies: 'Disabled'
-          privateLinkServiceNetworkPolicies: 'Enabled'
-        }
-      }
-    ]
-    virtualNetworkPeerings: []
-    enableDdosProtection: false
-  }
-}
-
-resource migrateProjects_azmigrateCentralProject1_name_Servers_Assessment_ServerAssessment 'Microsoft.Migrate/MigrateProjects/Solutions@2018-09-01-preview' = {
+resource migrateProjects_azmigrateCentralProject1_name_Servers_Assessment_ServerAssessment 'Microsoft.Migrate/MigrateProjects/Solutions@2020-05-01' = {
   parent: migrateProjects_azmigrateCentralProject1_name_resource
-  name: 'Servers-Assessment-ServerAssessment'
+  name: 'ServersAssessment'
   properties: {
     tool: 'ServerAssessment'
     purpose: 'Assessment'
     goal: 'Servers'
     status: 'Active'
     cleanupState: 'None'
-    summary: {
-      instanceType: 'Servers'
-      discoveredCount: 0
-      assessedCount: 0
-      replicatingCount: 0
-      testMigratedCount: 0
-      migratedCount: 0
-    }
-    details: {
-      groupCount: 0
-      assessmentCount: 0
-      extendedDetails: {}
-    }
   }
 }
 
-resource migrateProjects_azmigrateCentralProject1_name_Servers_Discovery_ServerDiscovery 'Microsoft.Migrate/MigrateProjects/Solutions@2018-09-01-preview' = {
+resource migrateProjects_azmigrateCentralProject1_name_Servers_Discovery_ServerDiscovery 'Microsoft.Migrate/MigrateProjects/Solutions@2020-05-01' = {
   parent: migrateProjects_azmigrateCentralProject1_name_resource
-  name: 'Servers-Discovery-ServerDiscovery'
+  name: 'ServersDiscovery'
   properties: {
     tool: 'ServerDiscovery'
     purpose: 'Discovery'
     goal: 'Servers'
-    status: 'Inactive'
+    status: 'Active'
     cleanupState: 'None'
-    summary: {
-      instanceType: 'Servers'
-      discoveredCount: 0
-      assessedCount: 0
-      replicatingCount: 0
-      testMigratedCount: 0
-      migratedCount: 0
-    }
     details: {
-      groupCount: 0
-      assessmentCount: 0
       extendedDetails: {
-        privateEndpointDetails: '{"subnetId":"/subscriptions/6394c202-ce34-4741-90ce-c4be54bf9cb3/resourceGroups/AzMigrateCentralTest/providers/Microsoft.Network/virtualNetworks/AzMigrateVNet/subnets/privendpoint","virtualNetworkLocation":"centralus","skipPrivateDnsZoneCreation":false}'
+        privateEndpointDetails: '{"subnetId":"${AzMigrateVNetID}/subnets/${AzMigrateVNetSubnetName}","virtualNetworkLocation":"${virtualNetworkLocation}","skipPrivateDnsZoneCreation":false}'
       }
     }
   }
 }
 
-resource migrateProjects_azmigrateCentralProject1_name_Servers_Migration_ServerMigration 'Microsoft.Migrate/MigrateProjects/Solutions@2018-09-01-preview' = {
+resource migrateProjects_azmigrateCentralProject1_name_Servers_Migration_ServerMigration 'Microsoft.Migrate/MigrateProjects/Solutions@2020-05-01' = {
   parent: migrateProjects_azmigrateCentralProject1_name_resource
-  name: 'Servers-Migration-ServerMigration'
+  name: 'ServersMigration'
   properties: {
     tool: 'ServerMigration'
     purpose: 'Migration'
     goal: 'Servers'
     status: 'Active'
     cleanupState: 'None'
-    summary: {
-      instanceType: 'Servers'
-      discoveredCount: 0
-      assessedCount: 0
-      replicatingCount: 0
-      testMigratedCount: 0
-      migratedCount: 0
-    }
-    details: {
-      groupCount: 0
-      assessmentCount: 0
-      extendedDetails: {}
-    }
   }
 }
 
-resource migrateProjects_azmigrateCentralProject1_name_Servers_Migration_ServerMigration_DataReplication 'Microsoft.Migrate/MigrateProjects/Solutions@2018-09-01-preview' = {
+resource migrateProjects_azmigrateCentralProject1_name_Servers_Migration_ServerMigration_Replication 'Microsoft.Migrate/MigrateProjects/Solutions@2020-05-01' = {
   parent: migrateProjects_azmigrateCentralProject1_name_resource
-  name: 'Servers-Migration-ServerMigration_DataReplication'
+  name: 'ServerMigrationRepl'
   properties: {
-    tool: 'ServerMigration_DataReplication'
+    tool: 'ServerMigration_Replication'
     purpose: 'Migration'
     goal: 'Servers'
-    status: 'Inactive'
+    status: 'Active'
     cleanupState: 'None'
-    summary: {
-      instanceType: 'Servers'
-      discoveredCount: 0
-      assessedCount: 0
-      replicatingCount: 0
-      testMigratedCount: 0
-      migratedCount: 0
-    }
-    details: {
-      groupCount: 0
-      assessmentCount: 0
-      extendedDetails: {}
-    }
   }
 }
 
-resource privateDnsZones_privatelink_prod_migration_windowsazure_com_name_A 'Microsoft.Network/privateDnsZones/A@2024-06-01' = {
+/* resource privateDnsZones_privatelink_prod_migration_windowsazure_com_name_A 'Microsoft.Network/privateDnsZones/A@2024-06-01' = {
   parent: privateDnsZones_privatelink_prod_migration_windowsazure_com_name_resource
   name: migrateProjects_azmigrateCentralProject1_name
   properties: {
@@ -189,6 +91,12 @@ resource privateDnsZones_privatelink_prod_migration_windowsazure_com_name_A 'Mic
       }
     ]
   }
+} */
+
+resource privateDnsZones_privatelink_prod_migration_windowsazure_com_name_resource 'Microsoft.Network/privateDnsZones@2024-06-01' = {
+  name: privateDnsZones_privatelink_prod_migration_windowsazure_com_name
+  location: 'global'
+  properties: {}
 }
 
 resource Microsoft_Network_privateDnsZones_SOA_privateDnsZones_privatelink_prod_migration_windowsazure_com_name 'Microsoft.Network/privateDnsZones/SOA@2024-06-01' = {
@@ -212,22 +120,22 @@ resource Microsoft_Network_privateDnsZones_SOA_privateDnsZones_privatelink_prod_
 
 resource privateDnsZones_privatelink_prod_migration_windowsazure_com_name_azmigratevnet1113vnetlink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
   parent: privateDnsZones_privatelink_prod_migration_windowsazure_com_name_resource
-  name: 'azmigratevnet1113vnetlink'
+  name: privateDnsZones_privatelink
   location: 'global'
   properties: {
     registrationEnabled: false
     resolutionPolicy: 'Default'
     virtualNetwork: {
-      id: virtualNetworks_AzMigrateVNet_name_resource.id
+      id: AzMigrateVNetID
     }
   }
 }
 
 resource privateEndpoints_azmigratecentralproject11004pe_name_resource 'Microsoft.Network/privateEndpoints@2024-07-01' = {
   name: privateEndpoints_azmigratecentralproject11004pe_name
-  location: location
+  location: virtualNetworkLocation
   tags: {
-    MigrateProject: 'azmigrateCentralProject1'
+    MigrateProject: migrateProjects_azmigrateCentralProject1_name
   }
   properties: {
     privateLinkServiceConnections: [
@@ -246,7 +154,7 @@ resource privateEndpoints_azmigratecentralproject11004pe_name_resource 'Microsof
     ]
     manualPrivateLinkServiceConnections: []
     subnet: {
-      id: '${virtualNetworks_AzMigrateVNet_name_resource.id}/subnets/privendpoint'
+      id: '${AzMigrateVNetID}/subnets/${AzMigrateVNetSubnetName}'
     }
     ipConfigurations: []
     customDnsConfigs: []
@@ -255,7 +163,7 @@ resource privateEndpoints_azmigratecentralproject11004pe_name_resource 'Microsof
 
 resource privateEndpoints_azmigratecentralproject11004pe_name_azmigratecentralproject11004dnszonegroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-07-01' = {
   parent: privateEndpoints_azmigratecentralproject11004pe_name_resource
-  name: 'azmigratecentralproject11004dnszonegroup'
+  name: '${privateEndpoints_azmigratecentralproject11004pe_name}dnszonegroup'
   properties: {
     privateDnsZoneConfigs: [
       {
@@ -267,3 +175,5 @@ resource privateEndpoints_azmigratecentralproject11004pe_name_azmigratecentralpr
     ]
   }
 }
+
+output privateEndpointDetails string = '{"subnetId":"${AzMigrateVNetID}/subnets/${AzMigrateVNetSubnetName}","virtualNetworkLocation":"${virtualNetworkLocation}","skipPrivateDnsZoneCreation":false}'
