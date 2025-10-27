@@ -1,0 +1,1 @@
+do { curl -C - -o .\<file>.vhd "SAS URL" } while ($LASTEXITCODE -ne 0)
