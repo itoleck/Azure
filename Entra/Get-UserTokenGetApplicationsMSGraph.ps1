@@ -32,3 +32,5 @@ $res=Invoke-WebRequest -Method Get -Uri 'https://graph.microsoft.com/v1.0/applic
 #--data-urlencode 'client_secret=<your-client-secret>' \
 #--data-urlencode 'grant_type=client_credentials' \
 #--data-urlencode 'scope=https://graph.microsoft.com/.default'
+
+
