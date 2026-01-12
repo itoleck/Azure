@@ -1,0 +1,66 @@
+{
+  "mode": "All",
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "field": "type",
+              "equals": "Microsoft.Web/sites"
+            },
+            {
+              "field": "type",
+              "equals": "Microsoft.Web/sites/slots"
+            }
+          ]
+        },
+        {
+          "field": "Microsoft.Web/sites/publicNetworkAccess",
+          "notEquals": "Disabled"
+        },
+        {
+          "anyOf": [
+            {
+              "count": {
+                "field": "Microsoft.Web/sites/siteConfig.ipSecurityRestrictions[*]",
+                "where": {
+                  "field": "Microsoft.Web/sites/siteConfig.ipSecurityRestrictions[*].action",
+                  "notEquals": "Allow"
+                }
+              },
+              "greater": 0
+            },
+            {
+              "count": {
+                "field": "Microsoft.Web/sites/siteConfig.ipSecurityRestrictions[*]",
+                "where": {
+                  "field": "Microsoft.Web/sites/siteConfig.ipSecurityRestrictions[*].ipAddress",
+                  "notIn": "[parameters('allowedIpAddresses')]"
+                }
+              },
+              "greater": 0
+            }
+          ]
+        }
+      ]
+    },
+    "then": {
+      "effect": "deny"
+    }
+  },
+  "parameters": {
+    "allowedIpAddresses": {
+      "type": "Array",
+      "metadata": {
+        "displayName": "Allowed IP Addresses",
+        "description": "List of allowed IP addresses or CIDR ranges that can be used in IP security restrictions. Format: ['192.168.1.1/32', '10.0.0.0/8']"
+      }
+    }
+  },
+  "metadata": {
+    "category": "App Service",
+    "version": "1.0.0",
+    "description": "Denies creation of App Service resources if IP security restrictions contain non-Allow actions or IP addresses not in the approved list, unless public network access is disabled."
+  }
+}
