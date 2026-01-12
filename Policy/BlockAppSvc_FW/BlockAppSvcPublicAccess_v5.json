@@ -1,0 +1,52 @@
+{
+  "mode": "All",
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "field": "type",
+              "equals": "Microsoft.Web/sites"
+            },
+            {
+              "field": "type",
+              "equals": "Microsoft.Web/sites/slots"
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "field": "Microsoft.Web/sites/siteConfig.ipSecurityRestrictions[*].ipAddress",
+              "contains": "Any"
+            },
+            {
+              "field": "Microsoft.Web/sites/siteConfig.ipSecurityRestrictions[*].action",
+              "equals": "Allow"
+            },
+            {
+              "field": "Microsoft.Web/sites/siteConfig.ipSecurityRestrictions[*].ipAddress",
+              "notIn": "[parameters('allowedIpAddresses')]"
+            }
+          ]
+        }
+      ]
+    },
+    "then": {
+      "effect": "deny"
+    }
+  },
+  "parameters": {
+    "allowedIpAddresses": {
+      "type": "Array",
+      "metadata": {
+        "displayName": "Allowed IP Addresses",
+        "description": "List of allowed IP addresses or CIDR ranges that can be used in IP security restrictions. Format: ['192.168.1.1/32', '10.0.0.0/8']"
+      },
+      "defaultValue": [
+        "1.1.1.1/32"
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 #https://learn.microsoft.com/en-us/graph/api/application-list?view=graph-rest-1.0&tabs=http
 #No DeviceAuthentication
-#Needs to be Work/School account
+#Needs to be Work/School account, user needs app admin role to read/write applications
 #Install-Module Microsoft.Graph -Scope CurrentUser -Repository PSGallery -Force
 #Import-Module Microsoft.Graph -Scope CurrentUser
 Connect-MgGraph -Scopes "User.Read", "User.Read.All", "Application.Read.All", "Directory.Read.All"

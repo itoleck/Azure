@@ -1,0 +1,107 @@
+{
+  "mode": "All",
+  "policyRule": {
+    "if": {
+      "anyOf": [
+        {
+          "field": "type",
+          "equals": "Microsoft.Web/sites"
+        },
+        {
+          "field": "type",
+          "equals": "Microsoft.Web/sites/slots"
+        }
+      ]
+    },
+    "then": {
+      "effect": "deployIfNotExists",
+      "details": {
+        "type": "Microsoft.Web/sites/config",
+        "name": "web",
+        "roleDefinitionIds": [
+          "/providers/Microsoft.Authorization/roleDefinitions/de139f84-1756-47ae-9be6-808fbbe84772"
+        ],
+        "existenceCondition": {
+          "count": {
+            "field": "Microsoft.Web/sites/config/web.ipSecurityRestrictions[*]",
+            "where": {
+              "field": "Microsoft.Web/sites/config/web.ipSecurityRestrictions[*].ipAddress",
+              "in": "[parameters('requiredIpAddresses')]"
+            }
+          },
+          "equals": "[length(parameters('requiredIpAddresses'))]"
+        },
+        "deployment": {
+          "properties": {
+            "mode": "incremental",
+            "parameters": {
+              "siteName": {
+                "value": "[field('name')]"
+              },
+              "location": {
+                "value": "[field('location')]"
+              },
+              "requiredIpAddresses": {
+                "value": "[parameters('requiredIpAddresses')]"
+              }
+            },
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {
+                "siteName": {
+                  "type": "string"
+                },
+                "location": {
+                  "type": "string"
+                },
+                "requiredIpAddresses": {
+                  "type": "array"
+                }
+              },
+              "variables": {
+                "ipSecurityRestrictions": {
+                  "copy": [
+                    {
+                      "name": "restrictions",
+                      "count": "[length(parameters('requiredIpAddresses'))]",
+                      "input": {
+                        "ipAddress": "[parameters('requiredIpAddresses')[copyIndex('restrictions')]]",
+                        "action": "Allow",
+                        "priority": "[add(100, copyIndex('restrictions'))]",
+                        "name": "[concat('Policy-Required-IP-', copyIndex('restrictions'))]"
+                      }
+                    }
+                  ]
+                }
+              },
+              "resources": [
+                {
+                  "type": "Microsoft.Web/sites/config",
+                  "apiVersion": "2022-03-01",
+                  "name": "[concat(parameters('siteName'), '/web')]",
+                  "location": "[parameters('location')]",
+                  "properties": {
+                    "ipSecurityRestrictions": "[variables('ipSecurityRestrictions').restrictions]"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "parameters": {
+    "requiredIpAddresses": {
+      "type": "Array",
+      "metadata": {
+        "displayName": "Required IP Addresses",
+        "description": "List of required IP addresses or CIDR ranges that must be configured in IP security restrictions. Format: ['192.168.1.1/32', '10.0.0.0/8']"
+      },
+      "defaultValue": [
+        "1.1.1.1/32"
+      ]
+    }
+  }
+}

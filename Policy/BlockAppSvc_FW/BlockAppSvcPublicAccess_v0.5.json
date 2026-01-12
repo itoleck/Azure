@@ -1,0 +1,29 @@
+{
+  "mode": "All",
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "field": "type",
+              "equals": "Microsoft.Web/sites"
+            },
+            {
+              "field": "type",
+              "equals": "Microsoft.Web/sites/slots"
+            }
+          ]
+        },
+        {
+          "field": "Microsoft.Web/sites/publicNetworkAccess",
+          "notEquals": "Disabled"
+        }
+      ]
+    },
+    "then": {
+      "effect": "deny"
+    }
+  },
+  "parameters": {}
+}
