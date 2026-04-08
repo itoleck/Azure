@@ -1,6 +1,12 @@
 # Detailed Azure Site Recovery (ASR) Appliance Info
 
+**Note:** ASR Appliance requires 16GB RAM and 8 non-HyperThreaded cores, so 16 vCores if using on Hyper-V.
+
 ASR Appliance Processes and Services
+
+[tutorial-migrate-physical-virtual-machines](https://docs.azure.cn/en-us/migrate/tutorial-migrate-physical-virtual-machines?view=migrate)
+
+[Site Recovery REST API](https://learn.microsoft.com/en-us/rest/api/site-recovery/?view=rest-site-recovery-2025-08-01)
 
 ![ASR Appliance](/Migration/ASRAppliance.png)
 

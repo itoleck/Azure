@@ -13,7 +13,11 @@ $global:AsyncOperation
 $script:vault_name
 $script:fabric_name
 $script:container_name
-$script:protected_item_name
+$script:protected_item_name     #Friendly Name of a protected item, needed for enabling replication and failover operations. This is the name shown in the friendlyName property of the protected item, which can be obtained by running the getprotecteditems function.
+$script:sites = [System.Collections.Generic.List[object]]::new()
+$script:site                    #Site ID for enabling replication. This is the name shown in the properties.friendlyName of the server site, which can be obtained by running the getmigrationserversites function. For agent-based migration, this is typically the server site that represents the on-prem environment.
+$script:policy                  #Policy for enabling replication. This is the full object of the replication policy, which can be obtained by running the getpolicy function or from the Azure portal. It is needed for enabling replication for a protected item.
+$script:migration_item_name     #Source machine name for enabling replication. This is the name shown in the friendlyName property of the protected item, which can be obtained by running the getprotecteditems function.
 
 # These variables are used if you want to overwrite the PowerShell parameters for testing in the code editor with F8
 $sub_id = $SubscriptionId
@@ -38,11 +42,15 @@ function selectchoice($Title, $Message, $Objects) {
     for ($i = 0; $i -lt $Objects.Count; $i++) {
         
         $hasFriendlyName = ($null -ne $Objects[$i].properties) -and ($null -ne $Objects[$i].properties.psobject.properties['friendlyName'])
+        $hasDisplayname = ($null -ne $Objects[$i].properties) -and ($null -ne $Objects[$i].properties.psobject.properties['displayName'])
 
         if($hasFriendlyName) {
             # Add a number and an ampersand (&) to create a keyboard shortcut
             # If the object has a friendlyName property, we display that instead of the name property for better readability
             $choices[$i] = [System.Management.Automation.Host.ChoiceDescription]::new("&$($i + 1). $($Objects[$i].properties.friendlyName)", "Selects $($Objects[$i].properties.friendlyName)")
+        } elseif($hasDisplayname) {
+            # Add a number and an ampersand (&) to create a keyboard shortcut
+            $choices[$i] = [System.Management.Automation.Host.ChoiceDescription]::new("&$($i + 1). $($Objects[$i].properties.displayName)", "Selects $($Objects[$i].properties.displayName)")
         } else {
             # Add a number and an ampersand (&) to create a keyboard shortcut
             $choices[$i] = [System.Management.Automation.Host.ChoiceDescription]::new("&$($i + 1). $($Objects[$i].Name)", "Selects $($Objects[$i].Name)")
@@ -113,6 +121,16 @@ function getprotecteditems {
     Write-Host "Protected Item Name: $($script:protected_item_name)"
 }
 
+function getpolicy {
+    # Get replication policy
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationPolicies?api-version=2024-10-01"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $policies = ($res.Content | convertfrom-json).value
+    $selectedObject = (selectchoice -Title "Select Replication Policy" -Message "Which Replication Policy would you like to use?" -Objects $policies)
+    $script:policy = ($selectedObject)
+    Write-Host "Selected Policy: $($script:policy)"
+}
+
 # Called by the failover functions to get all necessary parameters for the API calls. You can also run the individual get functions separately if you want to just get specific information or test the API calls without running a failover.
 function getmigrationparams {
     getvault
@@ -128,7 +146,8 @@ function getmigrationserversites {
     $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/resources?`$filter=resourceType eq `'$rtype`'&api-version=2022-09-01"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
     $sites = ($res.Content | convertfrom-json).value
-    Write-Host "Replication Sites: $($sites)"
+    $selectedObject = (selectchoice -Title "Select Server Site" -Message "Which Server Site would you like to use for replication?" -Objects $sites)
+    return $selectedObject
 }
 
 function getmigrationvmwaresites {
@@ -138,7 +157,8 @@ function getmigrationvmwaresites {
     $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/resources?`$filter=resourceType eq `'$rtype`'&api-version=2022-09-01"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
     $sites = ($res.Content | convertfrom-json).value
-    Write-Host "Replication Sites: $($sites)"
+    $selectedObject = (selectchoice -Title "Select VMWare Site" -Message "Which VMWare Site would you like to use for replication?" -Objects $sites)
+    return $selectedObject
 }
 
 function getmigrationhypervsites {
@@ -148,7 +168,8 @@ function getmigrationhypervsites {
     $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/resources?`$filter=resourceType eq `'$rtype`'&api-version=2022-09-01"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
     $sites = ($res.Content | convertfrom-json).value
-    Write-Host "Replication Sites: $($sites)"
+    $selectedObject = (selectchoice -Title "Select HyperV Site" -Message "Which HyperV Site would you like to use for replication?" -Objects $sites)
+    return $selectedObject
 }
 
 function getmigrationmastersites {
@@ -158,7 +179,23 @@ function getmigrationmastersites {
     $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/resources?`$filter=resourceType eq `'$rtype`'&api-version=2022-09-01"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
     $sites = ($res.Content | convertfrom-json).value
-    Write-Host "Replication Sites: $($sites)"
+    $selectedObject = (selectchoice -Title "Select Master Site" -Message "Which Master Site would you like to use for replication?" -Objects $sites)
+    return $selectedObject
+}
+
+function getallsites {
+    #Cycle through all site types and add to the global sites list for selection.
+    $script:sites.Add((getmigrationserversites))
+    $script:sites.Add((getmigrationvmwaresites))
+    $script:sites.Add((getmigrationhypervsites))
+    $script:sites.Add((getmigrationmastersites))
+}
+
+function selectsinglesite {
+    # Select a single site from the list of all sites
+    $selectedObject = (selectchoice -Title "Select Site" -Message "Which Site would you like to use?" -Objects $script:sites)
+    $script:site = ($selectedObject)
+    Write-Host "Selected Site Id: $($script:site.id)"
 }
 
 # This function get the replication jobs, which includes failover jobs, for a vault.
@@ -359,34 +396,157 @@ function listrecoverypoints {
     $recovery_points | Select-Object Properties | Format-List
 }
 
+function replicationMigrationItems {
+    # Get unreplicated items
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationFabrics/$($script:fabric_name)/replicationProtectionContainers/$($script:container_name)/"
+    $uri = $uri + "replicationMigrationItems?api-version=2025-08-01"
+    Write-Host "replicationMigrationItems URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $res | Format-List
+}
+
+function replicationProtectableItems {
+    # Get protectable items by replication protection container
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationFabrics/$($script:fabric_name)/replicationProtectionContainers/$($script:container_name)/"
+    $uri = $uri + "replicationProtectableItems?api-version=2025-08-01"
+    Write-Host "replicationProtectableItems URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $res | Format-List
+}
+
+function replicationAppliances {
+    # Get replication appliances
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/"
+    $uri = $uri + "replicationAppliances?api-version=2025-08-01"
+    Write-Host "replicationAppliances URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $appliances = ($res.Content | convertfrom-json).value
+    $appliances.properties.providerSpecificDetails.appliances | Format-List
+}
+
+function replicationAlertSettings {
+    # Get replication appliances
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/"
+    $uri = $uri + "replicationAlertSettings?api-version=2025-08-01"
+    Write-Host "replicationAlertSettings URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $alerts = ($res.Content | convertfrom-json).value
+    Write-Host "Alert Name: $($alerts.name)"
+    $alerts.properties | Format-List
+}
+
+function replicationEvents {
+    # Get replication appliances
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/"
+    $uri = $uri + "replicationEvents?api-version=2025-08-01"
+    Write-Host "replicationEvents URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $events = ($res.Content | convertfrom-json).value
+    $events | Format-List
+}
+
+function replicationPolicies {
+    # Get replication appliances
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/"
+    $uri = $uri + "replicationPolicies?api-version=2025-08-01"
+    Write-Host "replicationPolicies URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $policies = ($res.Content | convertfrom-json).value
+    $policies | Format-List
+}
+
+function enablereplication {
+    # Enable replication for the selected protected item
+    $response = Read-Host "Run Enable Replication code? (y/n)"
+    if ($response.Trim() -match "^y") {
+
+        $script:migration_item_name = (getmachinesinsite -site_path $script:site.id).properties.displayName
+
+        $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+        $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationFabrics/$($script:fabric_name)/replicationProtectionContainers/$($script:container_name)/replicationMigrationItems/"
+        $uri = $uri + "$($script:migration_item_name)?api-version=2025-08-01"
+        Write-Host "Enable Replication URI: $uri"
+
+        $payload = @{
+            properties= @{
+                policyId="$($script:policy.id)"
+                providerSpecificDetails=@{
+                    disksToInclude=$null
+                    instanceType="VMwareCbt"
+                    licenseType="NotLicenseType"
+                    targetNetworkId=$net_id
+                    targetVmName="$($script:migration_item_name)"
+                    targetVmSize="Standard_B2ls_v2"
+                    #Unfinished on providerSpecificDetails, need to test with actual values for agent-based migration. The above values are placeholders and may not be correct for your environment.
+                }
+            }
+        }
+        $body = $payload | ConvertTo-Json -Depth 10
+        Write-Host "Enable Replication Payload:`n$body"
+        $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
+        Write-Host "Enable Replication initiated. Status code: $($res.StatusCode)."
+        $res
+        Start-Sleep -Seconds 60
+
+        # Get the failover operation status
+        getstatus -Response $res
+    }
+}
+
+function getmachinesinsite($site_path) {
+    #$uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    #$uri = $uri + "providers/Microsoft.OffAzure/VMwareSites/cus-rsvaul38a7vmwaresite/"
+    #$uri = $uri + "providers/Microsoft.OffAzure/masterSites/homemigration4184mastersite/"
+    #$uri = $uri + "providers/Microsoft.OffAzure/ServerSites/cus-rsvaul38a7physicalsite/"
+    $uri = $site_path + "\machines?api-version=2023-06-06"
+    Write-Host "getmachinesinsite URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $machines = ($res.Content | convertfrom-json).value
+    $selectedObject = (selectchoice -Title "Select Machine" -Message "Which machine would you like to use for replication?" -Objects $machines)
+    #$machines.properties | Select-Object displayName,networkAdapters,disks,applianceNames,ipAddresses,updatedTimestamp | Format-List
+    return $selectedObject
+}
+
 # Start of script - display menu and prompt for action
 Clear-Host
 $menu = @"
-=================================
- Azure Migrate Agent-based Tests
-=================================
-1) Run Query all Replication Jobs
-2) Run Test Failover
-    3) Clean up Test Failover
-    x) Cancel Test Failover         # Not implemented yet
-4) Run Planned Failover
-    5) Clean up Planned Failover
-    6) Cancel Planned Failover
-    15) Commit Planned Failover
-100) Disable Replication for Protected Item       # Not implemented yet
-7) Get single Azure-AsyncOperation status via URI. Get in terminal with '`$global:AsyncOperation'
-8) Get single replication item based on FullComputerName
-x) Disable Replication for Protected Item       # Not implemented yet
-x) Resyncrhonize Protected Item                 # Not implemented yet
-x) Re-Protect Protected Item                    # Not implemented yet
-9) Show ServerSites, not needed for failover
-10) Show VMWareSites, not needed for failover
-11) Show HyperVSites, not needed for failover
-12) Show MasterSites, not needed for failover
-13) Get Replication Sites, not needed for failover
-14) List Recovery Points for Protected Item
+===================================================================================================
+                          Azure Migrate Agent-based Tests
+===================================================================================================
+Azure Migrate                                   |         ASR - Azure Site Recovery
+------------------------------------------------|--------------------------------------------------
+9) Show ServerSites                             | 1) Run Query all Replication Jobs
+10) Show VMWareSites                            | 2) Run Test Failover
+11) Show HyperVSites                            |    3) Clean up Test Failover
+12) Show MasterSites                            |    x) Cancel Test Failover         # Not implemented
+200) List the Machines in migration sites       | 4) Run Planned Failover
+201) Enable Replication                         |    5) Clean up Planned Failover
+13) Get Replication Sites                       |    6) Cancel Planned Failover
+                                                |   15) Commit Planned Failover
+                                                | 100) Enable Replication for Protected Item
+                                                | 101) Disable Replication for Protected Item       # Not implemented
+                                                | 7) Get single Azure-AsyncOperation status via URI.
+                                                |    (Get in terminal with '`$global:AsyncOperation')
+                                                | 8) Get single replication item based on FullComputerName
+                                                | x) Disable Replication for Protected Item       # Not implemented
+                                                | x) Resyncrhonize Protected Item                 # Not implemented
+                                                | x) Re-Protect Protected Item                    # Not implemented
+                                                | 14) List Recovery Points for Protected Item
+                                                | 16) replicationMigrationItems - (Replication Migration Items - List)
+                                                | 17) replicationProtectableItems - (Replication Protectable Items - List By Replication Protection Containers)
+                                                | 995) replicationPolicies - (Replication Policies - List)
+                                                | 996) replicationEvents - (Replication Events - List)
+                                                | 997) replicationAlertSettings - (Replication Alert Settings - List)
+                                                | 998) replicationAppliances - (Replication Appliances - List)
+===================================================================================================
 999) Exit
-=================================
+===================================================================================================
 "@
 
 Write-Host $menu
@@ -433,24 +593,27 @@ switch ($choice) {
     }
     "9" {
         Write-Host "Getting ServerSites..." -ForegroundColor Cyan
-        getmigrationserversites
+        Write-Host "ServerReplication Sites: $(getmigrationserversites)"
     }
     "10" {
         Write-Host "Getting VMWareSites..." -ForegroundColor Cyan
-        getmigrationvmwaresites
+        Write-Host "VMWareReplication Sites: $(getmigrationvmwaresites)"
     }
     "11" {
         Write-Host "Getting HyperVSites..." -ForegroundColor Cyan
-        getmigrationhypervsites
+        Write-Host "Hyper-V Replication Sites: $(getmigrationhypervsites)"
     }
     "12" {
         Write-Host "Getting MasterSites..." -ForegroundColor Cyan
-        getmigrationmastersites
+        Write-Host "Master Replication Sites: $(getmigrationmastersites)"
     }
     "13" {
-        Write-Host "Getting replication sites..." -ForegroundColor Cyan
-        getmigrationparams
-        getmigrationsites
+        Write-Host "Getting all replication sites in a vault..." -ForegroundColor Cyan
+        getmigrationserversites
+        getmigrationvmwaresites
+        getmigrationhypervsites
+        getmigrationmastersites
+        
     }
     "14" {
         Write-Host "Listing recovery points for protected item..." -ForegroundColor Cyan
@@ -462,10 +625,82 @@ switch ($choice) {
         getmigrationparams
         commitfailover
     }
+    "16" {
+        Write-Host "Listing Replication Migration Items..." -ForegroundColor Cyan
+        getvault
+        getfabric
+        getprotectioncontainers
+        replicationMigrationItems
+    }
+    "17" {
+        Write-Host "Listing protectable items by replication protection container..." -ForegroundColor Cyan
+        getvault
+        getfabric
+        getprotectioncontainers
+        replicationProtectableItems
+    }
     "100" {
+        Write-Host "Enable Replication for Protected Item..." -ForegroundColor Yellow
+        getvault
+        getfabric
+        getprotectioncontainers
+        getunreplicateditems
+        enablereplication
+    }
+    "101" {
         Write-Host "Disable Replication for Protected Item... (Not implemented yet)" -ForegroundColor Yellow
-        getmigrationparams
         
+    }
+    "200" {
+        Write-Host "List the Discovered Machines in migration sites..." -ForegroundColor Yellow
+        $site = getmigrationserversites
+        if ($site.length -gt 0) {
+            getmachinesinsite -site_path $site.id
+        }
+
+        $site = getmigrationhypervsites
+        if ($site.length -gt 0) {
+            getmachinesinsite -site_path $site.id
+        }
+
+        $site = getmigrationmastersites
+        if ($site.length -gt 0) {
+            getmachinesinsite -site_path $site.id
+        }
+
+        $site = getmigrationvmwaresites
+        if ($site.length -gt 0) {
+            getmachinesinsite -site_path $site.id
+        }
+    }
+    "201" {
+        getvault
+        getfabric
+        getprotectioncontainers
+        getpolicy
+        getallsites
+        selectsinglesite
+        enablereplication
+    }
+    "995" {
+        Write-Host "replicationPolicies - (Replication Policies - List)" -ForegroundColor Yellow
+        getvault
+        replicationPolicies
+    }
+    "996" {
+        Write-Host "replicationEvents - (Replication Events - List)" -ForegroundColor Yellow
+        getvault
+        replicationEvents
+    }
+    "997" {
+        Write-Host "replicationAlertSettings - (Replication Alert Settings - List)" -ForegroundColor Yellow
+        getvault
+        replicationAlertSettings
+    }
+    "998" {
+        Write-Host "replicationAppliances - (Replication Appliances - List)" -ForegroundColor Yellow
+        getvault
+        replicationAppliances
     }
     "999" {
         Write-Host "Exiting..." -ForegroundColor Yellow
