@@ -17,7 +17,7 @@ $script:protected_item_name     #Friendly Name of a protected item, needed for e
 $script:sites = [System.Collections.Generic.List[object]]::new()
 $script:site                    #Site ID for enabling replication. This is the name shown in the properties.friendlyName of the server site, which can be obtained by running the getmigrationserversites function. For agent-based migration, this is typically the server site that represents the on-prem environment.
 $script:policy                  #Policy for enabling replication. This is the full object of the replication policy, which can be obtained by running the getpolicy function or from the Azure portal. It is needed for enabling replication for a protected item.
-$script:migration_item_name     #Source machine name for enabling replication. This is the name shown in the friendlyName property of the protected item, which can be obtained by running the getprotecteditems function.
+
 
 # These variables are used if you want to overwrite the PowerShell parameters for testing in the code editor with F8
 $sub_id = $SubscriptionId
@@ -466,29 +466,58 @@ function enablereplication {
     $response = Read-Host "Run Enable Replication code? (y/n)"
     if ($response.Trim() -match "^y") {
 
-        $script:migration_item_name = (getmachinesinsite -site_path $script:site.id).properties.displayName
+        $machine = getmachinesinsite -site_path $script:site.id
+        $machine_displayname = $machine.properties.displayName
+        $machine_fixedname = $machine_displayname.Replace(".","")
+        $machine_id = $machine.id
+        $machine_name = $machine.name
+
+        $appliance = getreplicationAppliance
 
         $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
-        $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationFabrics/$($script:fabric_name)/replicationProtectionContainers/$($script:container_name)/replicationMigrationItems/"
-        $uri = $uri + "$($script:migration_item_name)?api-version=2025-08-01"
+        $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationFabrics/$($script:fabric_name)/replicationProtectionContainers/$($script:container_name)/replicationProtectedItems/"
+        $uri = $uri + "$($machine_name)?api-version=2025-08-01"
         Write-Host "Enable Replication URI: $uri"
 
         $payload = @{
             properties= @{
                 policyId="$($script:policy.id)"
+                protectableItemId=$null
                 providerSpecificDetails=@{
-                    disksToInclude=$null
-                    instanceType="VMwareCbt"
-                    licenseType="NotLicenseType"
+                    disksToInclude=@{
+                        diskId="/dev/sda"
+                        isFabricDiscoveryDiskId="true"
+                        diskEncryptionSetId=$null
+                        diskSizeInGB="60"
+                        diskType="Standard_LRS"
+                        isOSDisk="true"
+                        sectorSizeInBytes="0"
+                        iops="0"
+                        throughputInMBps="0"
+                        logStorageAccountId="/subscriptions/6394c202-ce34-4741-90ce-c4be54bf9cb3/resourceGroups/USCentralRG/providers/Microsoft.Storage/storageAccounts/ntue90cusrsvaulv2acache"
+                    }
+                    disksDefault=$null
+                    fabricDiscoveryMachineId="$($machine_id)"
+                    instanceType="InMageRcm"
+                    licenseType="NoLicenseType"
+                    linuxLicenseType="NoLicenseType"
+                    processServerId="$($appliance.processServer.id)"
+                    runAsAccountId="/subscriptions/6394c202-ce34-4741-90ce-c4be54bf9cb3/resourceGroups/scus_rg/providers/Microsoft.OffAzure/serversites/cus-rsvaul38a7physicalsite/runasaccounts/7cdb8f61-50cf-55b8-a2bc-3625610c5a0e"  #runAs account that maps to local account from ASR appliance
                     targetNetworkId=$net_id
-                    targetVmName="$($script:migration_item_name)"
+                    targetResourceGroupId="/subscriptions/6394c202-ce34-4741-90ce-c4be54bf9cb3/resourceGroups/scus_rg"    #Get from script param
+                    targetSubnetName="default"         #Get from script param
+                    targetVmName="$($machine_fixedname)"
                     targetVmSize="Standard_B2ls_v2"
+                    testNetworkId=$null
+                    testSubnetName=$null
+
                     #Unfinished on providerSpecificDetails, need to test with actual values for agent-based migration. The above values are placeholders and may not be correct for your environment.
                 }
             }
         }
         $body = $payload | ConvertTo-Json -Depth 10
         Write-Host "Enable Replication Payload:`n$body"
+        pause
         $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
         Write-Host "Enable Replication initiated. Status code: $($res.StatusCode)."
         $res
@@ -513,6 +542,26 @@ function getmachinesinsite($site_path) {
     return $selectedObject
 }
 
+function getrunasinsite($site_path) {
+    $uri = $site_path + "\runasAccounts?api-version=2020-01-01-preview"
+    Write-Host "getrunasinsite URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $runas = ($res.Content | convertfrom-json).value
+    $runas | Format-List
+}
+
+function getreplicationAppliance {
+    # Get single replication appliance
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/"
+    $uri = $uri + "replicationAppliances?api-version=2025-08-01"
+    Write-Host "replicationAppliances URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $appliances = ($res.Content | convertfrom-json).value
+    $selectedObject = (selectchoice -Title "Select Appliance" -Message "Which appliance would you like to use for replication?" -Objects $appliances.properties.providerSpecificDetails.appliances)
+    return $selectedObject
+}
+
 # Start of script - display menu and prompt for action
 Clear-Host
 $menu = @"
@@ -528,8 +577,8 @@ Azure Migrate                                   |         ASR - Azure Site Recov
 200) List the Machines in migration sites       | 4) Run Planned Failover
 201) Enable Replication                         |    5) Clean up Planned Failover
 13) Get Replication Sites                       |    6) Cancel Planned Failover
-                                                |   15) Commit Planned Failover
-                                                | 100) Enable Replication for Protected Item
+20) Get runasAccounts for a site                |   15) Commit Planned Failover
+21) Get ASR Appliance                           | 100) Enable Replication for Protected Item
                                                 | 101) Disable Replication for Protected Item       # Not implemented
                                                 | 7) Get single Azure-AsyncOperation status via URI.
                                                 |    (Get in terminal with '`$global:AsyncOperation')
@@ -639,8 +688,18 @@ switch ($choice) {
         getprotectioncontainers
         replicationProtectableItems
     }
+    "20" {
+        getallsites
+        selectsinglesite
+        getrunasinsite -site_path $script:site.id
+    }
+    "21" {
+        Write-Host "Getting ASR Appliances..." -ForegroundColor Cyan
+        getvault
+        getreplicationAppliance
+    }
     "100" {
-        Write-Host "Enable Replication for Protected Item..." -ForegroundColor Yellow
+        Write-Host "Enable Replication for Protected Item..." -ForegroundColor Cyan
         getvault
         getfabric
         getprotectioncontainers
@@ -648,11 +707,11 @@ switch ($choice) {
         enablereplication
     }
     "101" {
-        Write-Host "Disable Replication for Protected Item... (Not implemented yet)" -ForegroundColor Yellow
+        Write-Host "Disable Replication for Protected Item... (Not implemented yet)" -ForegroundColor Cyan
         
     }
     "200" {
-        Write-Host "List the Discovered Machines in migration sites..." -ForegroundColor Yellow
+        Write-Host "List the Discovered Machines in migration sites..." -ForegroundColor Cyan
         $site = getmigrationserversites
         if ($site.length -gt 0) {
             getmachinesinsite -site_path $site.id
@@ -683,27 +742,27 @@ switch ($choice) {
         enablereplication
     }
     "995" {
-        Write-Host "replicationPolicies - (Replication Policies - List)" -ForegroundColor Yellow
+        Write-Host "replicationPolicies - (Replication Policies - List)" -ForegroundColor Cyan
         getvault
         replicationPolicies
     }
     "996" {
-        Write-Host "replicationEvents - (Replication Events - List)" -ForegroundColor Yellow
+        Write-Host "replicationEvents - (Replication Events - List)" -ForegroundColor Cyan
         getvault
         replicationEvents
     }
     "997" {
-        Write-Host "replicationAlertSettings - (Replication Alert Settings - List)" -ForegroundColor Yellow
+        Write-Host "replicationAlertSettings - (Replication Alert Settings - List)" -ForegroundColor Cyan
         getvault
         replicationAlertSettings
     }
     "998" {
-        Write-Host "replicationAppliances - (Replication Appliances - List)" -ForegroundColor Yellow
+        Write-Host "replicationAppliances - (Replication Appliances - List)" -ForegroundColor Cyan
         getvault
         replicationAppliances
     }
     "999" {
-        Write-Host "Exiting..." -ForegroundColor Yellow
+        Write-Host "Exiting..." -ForegroundColor Cyan
         exit
     }
     Default {
