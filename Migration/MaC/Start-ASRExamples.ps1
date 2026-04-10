@@ -565,37 +565,39 @@ function getreplicationAppliance {
 # Start of script - display menu and prompt for action
 Clear-Host
 $menu = @"
-===================================================================================================
+==============================================================================
                           Azure Migrate Agent-based Tests
-===================================================================================================
-Azure Migrate                                   |         ASR - Azure Site Recovery
-------------------------------------------------|--------------------------------------------------
-9) Show ServerSites                             | 1) Run Query all Replication Jobs
-10) Show VMWareSites                            | 2) Run Test Failover
-11) Show HyperVSites                            |    3) Clean up Test Failover
-12) Show MasterSites                            |    x) Cancel Test Failover         # Not implemented
-200) List the Machines in migration sites       | 4) Run Planned Failover
-201) Enable Replication                         |    5) Clean up Planned Failover
-13) Get Replication Sites                       |    6) Cancel Planned Failover
-20) Get runasAccounts for a site                |   15) Commit Planned Failover
-21) Get ASR Appliance                           | 100) Enable Replication for Protected Item
-                                                | 101) Disable Replication for Protected Item       # Not implemented
-                                                | 7) Get single Azure-AsyncOperation status via URI.
-                                                |    (Get in terminal with '`$global:AsyncOperation')
-                                                | 8) Get single replication item based on FullComputerName
-                                                | x) Disable Replication for Protected Item       # Not implemented
-                                                | x) Resyncrhonize Protected Item                 # Not implemented
-                                                | x) Re-Protect Protected Item                    # Not implemented
-                                                | 14) List Recovery Points for Protected Item
-                                                | 16) replicationMigrationItems - (Replication Migration Items - List)
-                                                | 17) replicationProtectableItems - (Replication Protectable Items - List By Replication Protection Containers)
-                                                | 995) replicationPolicies - (Replication Policies - List)
-                                                | 996) replicationEvents - (Replication Events - List)
-                                                | 997) replicationAlertSettings - (Replication Alert Settings - List)
-                                                | 998) replicationAppliances - (Replication Appliances - List)
-===================================================================================================
+==============================================================================
+Azure Migrate                          |         ASR - Azure Site Recovery
+---------------------------------------|--------------------------------------
+9) Get ServerSites                     | 1) Run Query all Repl Jobs
+10) Get VMWareSites                    | 2) Run Test Failover
+11) Get HyperVSites                    |    3) Clean up Test Failover
+12) Get MasterSites                    |    x) Cancel Test Failover   # Not implemented
+200) Get Machines in migration sites   | 4) Run Planned Failover
+201) Enable Repl                       |    5) Clean up Planned Failover
+13) Get Repl Sites                     |    6) Cancel Planned Failover
+20) Get runasAccounts for a site       |   15) Commit Planned Failover
+21) Get ASR Appliance                  | 100) Enable Repl for Protected Item
+                                       | 101) Disable Repl for Protected Item  # Not implemented
+                                       | 7) Get single Azure-AsyncOperation status via URI.
+                                       |    (Get in terminal with '`$global:AsyncOperation')
+                                       | 8) Get single repl item based on FullComputerName
+                                       | x) Disable Repl for Protected Item    # Not implemented
+                                       | x) Resyncrhonize Protected Item       # Not implemented
+                                       | x) Re-Protect Protected Item          # Not implemented
+                                       | 14) Get Recovery Points for Protected Item
+------------------------------------------------------------------------------
+Direct API Call Examples
+993) replicationMigrationItems - (Replication Migration Items - List)
+994) replicationProtectableItems - (Replication Protectable Items - List By Replication Protection Containers)
+995) replicationPolicies - (Replication Policies - List)
+996) replicationEvents - (Replication Events - List)
+997) replicationAlertSettings - (Replication Alert Settings - List)
+998) replicationAppliances - (Replication Appliances - List)
+==============================================================================
 999) Exit
-===================================================================================================
+==============================================================================
 "@
 
 Write-Host $menu
@@ -674,14 +676,14 @@ switch ($choice) {
         getmigrationparams
         commitfailover
     }
-    "16" {
+    "993" {
         Write-Host "Listing Replication Migration Items..." -ForegroundColor Cyan
         getvault
         getfabric
         getprotectioncontainers
         replicationMigrationItems
     }
-    "17" {
+    "994" {
         Write-Host "Listing protectable items by replication protection container..." -ForegroundColor Cyan
         getvault
         getfabric
