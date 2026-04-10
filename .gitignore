@@ -226,3 +226,4 @@ Migration/Web/HelloWorldGAC/HelloWorldGAC/.vs/HelloWorldGAC/v17/DocumentLayout.j
 Policy/MachineConfiguration/TimeZone_SetTimeZone_Config/TimeZone.zip
 Migration/Project/azuremigrate.bicep
 Migration/Project/azuremigrate.json
+Migration/MaC/NoGit

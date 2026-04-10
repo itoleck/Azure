@@ -4,7 +4,12 @@
 param (
     [Parameter(Mandatory=$true)][string]$ResourceGroupName, # Resource group name where the Recovery Services vault/s are located
     [Parameter(Mandatory=$true)][string]$SubscriptionId,    # Subscription ID of the project subscription, needed to find vault and construct API URIs
-    [Parameter(Mandatory=$true)][string]$NetworkId          # NetworkId of the destination subnet in Azure, needed for agent-based migration failover
+    [Parameter(Mandatory=$false)][string]$VNetId,            #Full Virtual Network Id of the destination subnet in Azure, needed for agent-based migration failover
+    [Parameter(Mandatory=$false)][string]$SubnetName,
+    [Parameter(Mandatory=$false)][string]$runAsAccountId,
+    [Parameter(Mandatory=$false)][switch]$targetResourceGroupId,
+    [Parameter(Mandatory=$false)][switch]$targetBootDiagnosticsStorageAccountId,
+    [Parameter(Mandatory=$false)][switch]$logStorageAccountId
 )
 
 # Set global variable for failover Azure-AsyncOperation
@@ -20,9 +25,17 @@ $script:policy                  #Policy for enabling replication. This is the fu
 
 
 # These variables are used if you want to overwrite the PowerShell parameters for testing in the code editor with F8
+# Duplicate the next 8 lines and change the values if you want to hardcode the parameters for testing, otherwise it will use the parameters you input when running the script.
 $sub_id = $SubscriptionId
 $rg = $ResourceGroupName
-$net_id = $NetworkId
+$net_id = $VNetId
+$subnet_name = $SubnetName
+$run_as_account_id = $runAsAccountId
+$target_rg = $targetResourceGroupId
+$targetbootdiagstorage_id = $targetBootDiagnosticsStorageAccountId
+$logstorage_id = $logStorageAccountId
+
+
 
 
 # Check if user is logged in to Azure, if not prompt to login. This is needed to get an access token for the REST API calls
@@ -482,36 +495,29 @@ function enablereplication {
         $payload = @{
             properties= @{
                 policyId="$($script:policy.id)"
-                protectableItemId=$null
+                protectableItemId="$($machine_id)"
                 providerSpecificDetails=@{
-                    disksToInclude=@{
-                        diskId="/dev/sda"
-                        isFabricDiscoveryDiskId="true"
-                        diskEncryptionSetId=$null
-                        diskSizeInGB="60"
-                        diskType="Standard_LRS"
-                        isOSDisk="true"
-                        sectorSizeInBytes="0"
-                        iops="0"
-                        throughputInMBps="0"
-                        logStorageAccountId="/subscriptions/6394c202-ce34-4741-90ce-c4be54bf9cb3/resourceGroups/USCentralRG/providers/Microsoft.Storage/storageAccounts/ntue90cusrsvaulv2acache"
-                    }
-                    disksDefault=$null
-                    fabricDiscoveryMachineId="$($machine_id)"
                     instanceType="InMageRcm"
-                    licenseType="NoLicenseType"
-                    linuxLicenseType="NoLicenseType"
-                    processServerId="$($appliance.processServer.id)"
-                    runAsAccountId="/subscriptions/6394c202-ce34-4741-90ce-c4be54bf9cb3/resourceGroups/scus_rg/providers/Microsoft.OffAzure/serversites/cus-rsvaul38a7physicalsite/runasaccounts/7cdb8f61-50cf-55b8-a2bc-3625610c5a0e"  #runAs account that maps to local account from ASR appliance
+                    fabricDiscoveryMachineId="$($machine_id)"
+                    targetResourceGroupId="$($target_rg)"    #Get from script param
                     targetNetworkId=$net_id
-                    targetResourceGroupId="/subscriptions/6394c202-ce34-4741-90ce-c4be54bf9cb3/resourceGroups/scus_rg"    #Get from script param
-                    targetSubnetName="default"         #Get from script param
+                    targetSubnetName="$($subnet_name)"         #Get from script param
+                    testNetworkId=$net_id
+                    testSubnetName="$($subnet_name)"
                     targetVmName="$($machine_fixedname)"
-                    targetVmSize="Standard_B2ls_v2"
-                    testNetworkId=$null
-                    testSubnetName=$null
-
-                    #Unfinished on providerSpecificDetails, need to test with actual values for agent-based migration. The above values are placeholders and may not be correct for your environment.
+                    targetVmSize=$null
+                    licenseType="NotSpecified"
+                    targetAvailabilitySetId=$null
+                    storageAccountId=$null
+                    targetBootDiagnosticsStorageAccountId="$($targetbootdiagstorage_id)"
+                    processServerId="$($appliance.processServer.id)"
+                    runAsAccountId="$($run_as_account_id)"  #runAs account that maps to local account from ASR appliance
+                    multiVmGroupName=$null
+                    disksToInclude=$null
+                    disksDefault=@{
+                        diskType="Standard_LRS"
+                        logStorageAccountId="$($logstorage_id)"
+                    }
                 }
             }
         }
@@ -533,7 +539,7 @@ function getmachinesinsite($site_path) {
     #$uri = $uri + "providers/Microsoft.OffAzure/VMwareSites/cus-rsvaul38a7vmwaresite/"
     #$uri = $uri + "providers/Microsoft.OffAzure/masterSites/homemigration4184mastersite/"
     #$uri = $uri + "providers/Microsoft.OffAzure/ServerSites/cus-rsvaul38a7physicalsite/"
-    $uri = $site_path + "\machines?api-version=2023-06-06"
+    $uri = $site_path + "/machines?api-version=2023-06-06"
     Write-Host "getmachinesinsite URI: $uri"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
     $machines = ($res.Content | convertfrom-json).value
@@ -543,7 +549,7 @@ function getmachinesinsite($site_path) {
 }
 
 function getrunasinsite($site_path) {
-    $uri = $site_path + "\runasAccounts?api-version=2020-01-01-preview"
+    $uri = $site_path + "/runasAccounts?api-version=2020-01-01-preview"
     Write-Host "getrunasinsite URI: $uri"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
     $runas = ($res.Content | convertfrom-json).value
