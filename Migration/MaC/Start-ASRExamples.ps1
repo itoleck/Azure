@@ -7,9 +7,9 @@ param (
     [Parameter(Mandatory=$false)][string]$VNetId,            #Full Virtual Network Id of the destination subnet in Azure, needed for agent-based migration failover
     [Parameter(Mandatory=$false)][string]$SubnetName,
     [Parameter(Mandatory=$false)][string]$runAsAccountId,
-    [Parameter(Mandatory=$false)][switch]$targetResourceGroupId,
-    [Parameter(Mandatory=$false)][switch]$targetBootDiagnosticsStorageAccountId,
-    [Parameter(Mandatory=$false)][switch]$logStorageAccountId
+    [Parameter(Mandatory=$false)][string]$targetResourceGroupId,
+    [Parameter(Mandatory=$false)][string]$targetBootDiagnosticsStorageAccountId,
+    [Parameter(Mandatory=$false)][string]$logStorageAccountId
 )
 
 # Set global variable for failover Azure-AsyncOperation
@@ -524,7 +524,7 @@ function enablereplication {
         $body = $payload | ConvertTo-Json -Depth 10
         Write-Host "Enable Replication Payload:`n$body"
         pause
-        $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
+        $res = Invoke-AzRestMethod -Method PUT -Path $uri -Payload $body
         Write-Host "Enable Replication initiated. Status code: $($res.StatusCode)."
         $res
         Start-Sleep -Seconds 60
