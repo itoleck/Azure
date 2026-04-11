@@ -86,6 +86,7 @@ function getstatus($Response) {
     $global:AsyncOperation = $OperationUri
     Write-Host "Failover Operation Status: $(($res.Content | ConvertFrom-Json).status)`n`r"
     Write-Host "AsyncOperation Uri:`n`r$($global:AsyncOperation)"
+    return $res
 }
 
 # The following functions are used to get the necessary parameters for the failover operations, such as vault name, fabric name, container name, and protected item name. They use the selectchoice function to prompt the user to select from a list of available options.
@@ -527,10 +528,20 @@ function enablereplication {
         $res = Invoke-AzRestMethod -Method PUT -Path $uri -Payload $body
         Write-Host "Enable Replication initiated. Status code: $($res.StatusCode)."
         $res
-        Start-Sleep -Seconds 60
 
-        # Get the failover operation status
+        Start-Sleep -Seconds 300
         getstatus -Response $res
+
+        do {
+            for ($i = 0; $i -lt 300; $i++) {
+                Write-Host "." -NoNewline
+                Start-Sleep -Seconds 1
+            }
+            $res = Invoke-AzRestMethod -Method GET -Uri "$($global:AsyncOperation)"
+            $jres=($res.Content)|ConvertFrom-Json
+            Write-Host "`nEnable Replication Status: $($jres.status)"
+        } while ($jres.status -ne "Succeeded")
+        Write-Host "Enable Replication of machine $($machine_fixedname) completed"
     }
 }
 
@@ -640,7 +651,7 @@ switch ($choice) {
     "7" {
         $async_uri = Read-Host "Enter Azure-AsyncOperation URI to query status"
         $global:AsyncOperation = $async_uri
-        $res = Invoke-AzRestMethod -Method GET -Uri $global:AsyncOperation
+        $res = Invoke-AzRestMethod -Method GET -Uri "$($global:AsyncOperation)"
         $res | Format-List
     }
     "8" {
