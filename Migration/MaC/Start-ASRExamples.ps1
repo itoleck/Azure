@@ -22,7 +22,7 @@ $script:protected_item_name     #Friendly Name of a protected item, needed for e
 $script:sites = [System.Collections.Generic.List[object]]::new()
 $script:site                    #Site ID for enabling replication. This is the name shown in the properties.friendlyName of the server site, which can be obtained by running the getmigrationserversites function. For agent-based migration, this is typically the server site that represents the on-prem environment.
 $script:policy                  #Policy for enabling replication. This is the full object of the replication policy, which can be obtained by running the getpolicy function or from the Azure portal. It is needed for enabling replication for a protected item.
-
+$script:run_as_account_id
 
 # These variables are used if you want to overwrite the PowerShell parameters for testing in the code editor with F8
 # Duplicate the next 8 lines and change the values if you want to hardcode the parameters for testing, otherwise it will use the parameters you input when running the script.
@@ -30,7 +30,7 @@ $sub_id = $SubscriptionId
 $rg = $ResourceGroupName
 $net_id = $VNetId
 $subnet_name = $SubnetName
-$run_as_account_id = $runAsAccountId
+$script:run_as_account_id = $runAsAccountId
 $target_rg = $targetResourceGroupId
 $targetbootdiagstorage_id = $targetBootDiagnosticsStorageAccountId
 $logstorage_id = $logStorageAccountId
@@ -87,6 +87,19 @@ function getstatus($Response) {
     Write-Host "Failover Operation Status: $(($res.Content | ConvertFrom-Json).status)`n`r"
     Write-Host "AsyncOperation Uri:`n`r$($global:AsyncOperation)"
     return $res
+}
+
+function getstatusloop($operation, $operation_uri, $finishing_message) {
+    do {
+        for ($i = 0; $i -lt 300; $i++) {
+            Write-Host "." -NoNewline
+            Start-Sleep -Seconds 1
+        }
+        $res = Invoke-AzRestMethod -Method GET -Uri "$($operation_uri)"
+        $jres=($res.Content)|ConvertFrom-Json
+        Write-Host "`n$($operation) Status: $($jres.status)"
+    } while ($jres.status -ne "Succeeded")
+     Write-Host "$($finishing_message)"
 }
 
 # The following functions are used to get the necessary parameters for the failover operations, such as vault name, fabric name, container name, and protected item name. They use the selectchoice function to prompt the user to select from a list of available options.
@@ -218,9 +231,10 @@ function getmigrationfailoverjobs {
     $uri = "/subscriptions/$sub_id/resourceGroups/$rg/providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationJobs?api-version=2025-08-01"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
     $jobs = ($res.Content | convertfrom-json).value
-    $jobs | Select-Object -Property Name, 
+    $jobs | Select-Object -Property  @{Name = 'time'; Expression = { $_.properties.endTime }},
         @{Name = 'friendlyName'; Expression = { $_.properties.friendlyName }},
-        @{Name = 'state';     Expression = { $_.properties.state }}
+        @{Name = 'state';     Expression = { $_.properties.state }},
+        @{Name = 'id'; Expression = { $_.name }}
 }
 
 # This function gets a single replication item based on the protected item name. This is used to get the details of the protected item, which can be useful for troubleshooting and to verify that the correct item is being used for the failover.
@@ -231,7 +245,7 @@ function getsinglereplicationitem {
     $res_obj = $res.Content|ConvertFrom-Json
     $name = $res_obj.properties.friendlyName
     Write-Host "Replication Item Name: $name`n`r"
-    $res_obj | Format-List
+    return $res_obj
 }
 
 # This function initiates a test failover for the selected protected item. It constructs the API URI and payload based on the selected vault, fabric, container, and protected item, and then makes a POST request to start the test failover. After initiating the failover, it calls the getstatus function to check the status of the operation.
@@ -259,12 +273,14 @@ function testfailover {
         $body = $payload | ConvertTo-Json -Depth 10
         Write-Host "Test Failover Payload: $body"
         $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
-        Write-Host "Test Failover initiated. Status code: $($res.StatusCode)"
+        Write-Host "Test Failover initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, status update every 5 minutes."
     }
     Start-Sleep -Seconds 60
 
     # Get the failover operation status
     getstatus -Response $res
+
+    getstatusloop -operation "Test Failover" -operation_uri $global:AsyncOperation -finishing_message "Test Failover of machine $($machine_fixedname) completed"
 }
 
 # This function initiates the cleanup of a test failover for the selected protected item. It constructs the API URI and payload based on the selected vault, fabric, container, and protected item, and then makes a POST request to start the cleanup of the test failover. After initiating the cleanup, it calls the getstatus function to check the status of the operation.
@@ -285,12 +301,14 @@ function cleanuptestfailover {
         $body = $payload | ConvertTo-Json -Depth 10
         Write-Host "Test Failover Cleanup Payload:`n$body"
         $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
-        Write-Host "Test Failover Cleanup initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, then exits."
+        Write-Host "Test Failover Cleanup initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, status update every 5 minutes."
     }
     Start-Sleep -Seconds 60
 
     # Get the failover operation status
     getstatus -Response $res
+
+    getstatusloop -operation "Test Failover Cleanup" -operation_uri $global:AsyncOperation -finishing_message "Test Failover Cleanup of machine $($machine_fixedname) completed"
 }
 
 # This function initiates a planned failover for the selected protected item. It constructs the API URI and payload based on the selected vault, fabric, container, and protected item, and then makes a POST request to start the planned failover. After initiating the failover, it calls the getstatus function to check the status of the operation.
@@ -314,12 +332,14 @@ function plannedfailover {
     Write-Host "Planned Failover Payload: $body"
 
     $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
-    Write-Host "Planned Failover initiated. Status code: $($res.StatusCode)"
+    Write-Host "Planned Failover initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, status update every 5 minutes."
 
     Start-Sleep -Seconds 60
 
     # Get the failover operation status
     getstatus -Response $res
+
+    getstatusloop -operation "Planned Failover" -operation_uri $global:AsyncOperation -finishing_message "Planned Failover of machine $($machine_fixedname) completed"
 }
 
 # This function initiates the cancellation of a planned failover for the selected protected item.
@@ -339,12 +359,14 @@ function cancelfailover {
         $body = $payload | ConvertTo-Json -Depth 10
         Write-Host "Failover Cancel Payload:`n$body"
         $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
-        Write-Host "Failover Cancel initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, then exits."
+        Write-Host "Failover Cancel initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, status update every 5 minutes."
     }
     Start-Sleep -Seconds 60
 
     # Get the failover operation status
     getstatus -Response $res
+
+    getstatusloop -operation "Failover Cancel" -operation_uri $global:AsyncOperation -finishing_message "Failover Cancel of machine $($machine_fixedname) completed"
 }
 
 function commitfailover {
@@ -363,12 +385,14 @@ function commitfailover {
         $body = $payload | ConvertTo-Json -Depth 10
         Write-Host "Failover Commit Payload:`n$body"
         $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
-        Write-Host "Failover Commit initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, then exits."
+        Write-Host "Failover Commit initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, status update every 5 minutes."
     }
     Start-Sleep -Seconds 60
 
     # Get the failover operation status
     getstatus -Response $res
+
+    getstatusloop -operation "Failover Commit" -operation_uri $global:AsyncOperation -finishing_message "Failover Commit of machine $($machine_fixedname) completed"
 }
 
 function disablereplication {
@@ -392,12 +416,14 @@ function disablereplication {
         $body = $payload | ConvertTo-Json -Depth 10
         Write-Host "Disable Replication Payload:`n$body"
         $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
-        Write-Host "Disable Replication initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, then exits."
+        Write-Host "Disable Replication initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, status update every 5 minutes."
     }
     Start-Sleep -Seconds 60
 
     # Get the failover operation status
     getstatus -Response $res
+
+    getstatusloop -operation "Disable Replication" -operation_uri $global:AsyncOperation -finishing_message "Disable Replication of machine $($machine_fixedname) completed"
 }
 
 # This function lists the recovery points for the selected protected item. It constructs the API URI based on the selected vault, fabric, container, and protected item, and then makes a GET request to retrieve the list of recovery points. The recovery points are then displayed in a formatted list.
@@ -428,6 +454,17 @@ function replicationProtectableItems {
     Write-Host "replicationProtectableItems URI: $uri"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
     $res | Format-List
+}
+
+function replicationProtectableItem {
+    # Get protectable items by replication protection container
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationFabrics/$($script:fabric_name)/replicationProtectionContainers/$($script:container_name)/"
+    $uri = $uri + "replicationProtectableItems?api-version=2025-08-01"
+    Write-Host "replicationProtectableItems URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $selectedObject = (selectchoice -Title "Select Machine" -Message "Which protected machine would you like?" -Objects $res)
+    return $selectedObject
 }
 
 function replicationAppliances {
@@ -512,7 +549,7 @@ function enablereplication {
                     storageAccountId=$null
                     targetBootDiagnosticsStorageAccountId="$($targetbootdiagstorage_id)"
                     processServerId="$($appliance.processServer.id)"
-                    runAsAccountId="$($run_as_account_id)"  #runAs account that maps to local account from ASR appliance
+                    runAsAccountId="$($script:run_as_account_id)"  #runAs account that maps to local account from ASR appliance
                     multiVmGroupName=$null
                     disksToInclude=$null
                     disksDefault=@{
@@ -526,30 +563,34 @@ function enablereplication {
         Write-Host "Enable Replication Payload:`n$body"
         pause
         $res = Invoke-AzRestMethod -Method PUT -Path $uri -Payload $body
-        Write-Host "Enable Replication initiated. Status code: $($res.StatusCode)."
+        Write-Host "Enable Replication initiated. Status code: $($res.StatusCode).`nWait 60 seconds for status, status update every 5 minutes."
         $res
 
         Start-Sleep -Seconds 300
         getstatus -Response $res
 
-        do {
-            for ($i = 0; $i -lt 300; $i++) {
-                Write-Host "." -NoNewline
-                Start-Sleep -Seconds 1
-            }
-            $res = Invoke-AzRestMethod -Method GET -Uri "$($global:AsyncOperation)"
-            $jres=($res.Content)|ConvertFrom-Json
-            Write-Host "`nEnable Replication Status: $($jres.status)"
-        } while ($jres.status -ne "Succeeded")
-        Write-Host "Enable Replication of machine $($machine_fixedname) completed"
+        getstatusloop -operation "Enable Replication" -operation_uri $global:AsyncOperation -finishing_message "Enable Replication of machine $($machine_fixedname) completed"
+
     }
 }
 
+function resyncreplication {
+    # Resync replication for the selected protected item
+    Write-Host "Resyncing Replication for the selected protected item."
+
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationFabrics/$($script:fabric_name)/replicationProtectionContainers/$($script:container_name)/replicationProtectedItems/"
+    $uri = $uri + "$($script:protected_item_name)/repairReplication?api-version=2025-08-01"
+    Write-Host "Resync-Replication URI: $uri"
+    $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
+    Write-Host "Resync Replication initiated for machine $($script:protected_item_name). Status code: $($res.StatusCode)."
+    $res
+
+    Start-Sleep -Seconds 60
+    getstatus -Response $res
+}
+
 function getmachinesinsite($site_path) {
-    #$uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
-    #$uri = $uri + "providers/Microsoft.OffAzure/VMwareSites/cus-rsvaul38a7vmwaresite/"
-    #$uri = $uri + "providers/Microsoft.OffAzure/masterSites/homemigration4184mastersite/"
-    #$uri = $uri + "providers/Microsoft.OffAzure/ServerSites/cus-rsvaul38a7physicalsite/"
     $uri = $site_path + "/machines?api-version=2023-06-06"
     Write-Host "getmachinesinsite URI: $uri"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
@@ -567,6 +608,17 @@ function getrunasinsite($site_path) {
     $runas | Format-List
 }
 
+function getsinglerunasaccountinsite($site_path) {
+    $uri = $site_path + "/runasAccounts?api-version=2020-01-01-preview"
+    Write-Host "getrunasinsite URI: $uri"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $runas = ($res.Content | convertfrom-json).value
+    $selectedObject = (selectchoice -Title "Select runAs Account" -Message "Which machine would you like to use for replication?" -Objects $runas)
+    $script:run_as_account_id = $selectedObject.id
+    Write-Host "Selected runAs Account Id: $($script:run_as_account_id)"
+    return $selectedObject
+}
+
 function getreplicationAppliance {
     # Get single replication appliance
     $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
@@ -582,154 +634,184 @@ function getreplicationAppliance {
 # Start of script - display menu and prompt for action
 Clear-Host
 $menu = @"
-==============================================================================
-                          Azure Migrate Agent-based Tests
-==============================================================================
-Azure Migrate                          |         ASR - Azure Site Recovery
----------------------------------------|--------------------------------------
-9) Get ServerSites                     | 1) Run Query all Repl Jobs
-10) Get VMWareSites                    | 2) Run Test Failover
-11) Get HyperVSites                    |    3) Clean up Test Failover
-12) Get MasterSites                    |    x) Cancel Test Failover   # Not implemented
-200) Get Machines in migration sites   | 4) Run Planned Failover
-201) Enable Repl                       |    5) Clean up Planned Failover
-13) Get Repl Sites                     |    6) Cancel Planned Failover
-20) Get runasAccounts for a site       |   15) Commit Planned Failover
-21) Get ASR Appliance                  | 100) Enable Repl for Protected Item
-                                       | 101) Disable Repl for Protected Item  # Not implemented
-                                       | 7) Get single Azure-AsyncOperation status via URI.
-                                       |    (Get in terminal with '`$global:AsyncOperation')
-                                       | 8) Get single repl item based on FullComputerName
-                                       | x) Disable Repl for Protected Item    # Not implemented
-                                       | x) Resyncrhonize Protected Item       # Not implemented
-                                       | x) Re-Protect Protected Item          # Not implemented
-                                       | 14) Get Recovery Points for Protected Item
-------------------------------------------------------------------------------
-Direct API Call Examples
+                                        Azure Migrate Agent-based Tests
+=====================================================================================================================
+Azure Migrate Replication Management PowerShell Examples
+---------------------------------------------------------------------------------------------------------------------
+100) Enable Replication
+     101) Disable Replication
+     102) Resyncrhonize Protected Item
+     x103) Re-Protect Protected Item            # Not implemented
+    104) Get Recovery Points for Protected Item
+    105) Get single replication item detailed information
+
+200) Run Test Failover
+    201) Clean up Test Failover
+    x202) Cancel Test Failover                  # Not implemented
+
+300) Run Failover
+    x301) Clean up Failover                     # Not implemented
+    302) Cancel Failover
+    303) Commit Failover
+
+---------------------------------------------------------------------------------------------------------------------
+Replication Status Queries
+---------------------------------------------------------------------------------------------------------------------
+400) Run Query all Replication Jobs
+401) Get single Azure-AsyncOperation status via URI. (Get in terminal with '`$global:AsyncOperation')
+
+---------------------------------------------------------------------------------------------------------------------
+Replication Sites Queries
+---------------------------------------------------------------------------------------------------------------------
+800) Get All Replication Sites
+801) Get ServerSites
+802) Get VMWareSites
+803) Get HyperVSites
+804) Get MasterSites
+805) Get all runasAccounts for a site
+806) Get Machines in migration sites
+807) Get single runasAccount in a site
+
+---------------------------------------------------------------------------------------------------------------------
+Direct Azure REST API Call Examples
+---------------------------------------------------------------------------------------------------------------------
+990) vaults - (Recovery Services Vaults - List)
+991) replicationFabrics - (Replication Fabrics - List By Recovery Services Vault)
+992) replicationProtectionContainers - (Replication Protection Containers - List By Replication Fabrics)
 993) replicationMigrationItems - (Replication Migration Items - List)
 994) replicationProtectableItems - (Replication Protectable Items - List By Replication Protection Containers)
 995) replicationPolicies - (Replication Policies - List)
 996) replicationEvents - (Replication Events - List)
 997) replicationAlertSettings - (Replication Alert Settings - List)
 998) replicationAppliances - (Replication Appliances - List)
-==============================================================================
+
 999) Exit
-==============================================================================
+================================   Scroll up for more   =============================================================
 "@
 
 Write-Host $menu
 $choice = Read-Host "Please select an option (1-999)"
 switch ($choice) {
-    "1" {
-        Write-Host "Get all failover job data..." -ForegroundColor Cyan
+    "100" { #Enable Replication
+        Write-Host "Enabling replication..." -ForegroundColor Cyan
         getvault
-        getmigrationfailoverjobs
+        getfabric
+        getprotectioncontainers
+        getpolicy
+        getallsites
+        selectsinglesite
+        getsinglerunasaccountinsite -site_path $script:site.id
+        enablereplication
     }
-    "2" {
-        Write-Host "Test Failover..." -ForegroundColor Cyan
+    "101" { #Disable Replication
+        Write-Host "Disabling replication..." -ForegroundColor Cyan
+        getmigrationparams
+        disablereplication
+    }
+    "102" { #Resync/Repair Replication
+        Write-Host "Resynchronizing Protected Item..." -ForegroundColor Cyan
+        getmigrationparams
+        resyncreplication
+    }
+    "103" { #Re-Protecting Protected Item
+        Write-Host "Re-Protecting Protected Item..." -ForegroundColor Cyan
+        getmigrationparams
+    }
+    "104" { #Getting Recovery Points for Protected Item
+        Write-Host "Getting Recovery Points for Protected Item..." -ForegroundColor Cyan
+        getmigrationparams
+        listrecoverypoints
+    }
+    "105" { #Getting single replication item detailed information
+        Write-Host "Getting single replication item detailed information..." -ForegroundColor Cyan
+        getmigrationparams
+        getsinglereplicationitem | Format-List
+    }
+    "200" { #Run Test Failover
+        Write-Host "Running Test Failover..." -ForegroundColor Cyan
         getmigrationparams
         testfailover
     }
-    "3" {
-        Write-Host "Cleaning up Test Failover Job..." -ForegroundColor Cyan
+    "201" { #Cleaning up Test Failover
+        Write-Host "Cleaning up Test Failover..." -ForegroundColor Cyan
         getmigrationparams
-        cleanuptestfailover
+        #Make sure protected item is ready to clean up.
+        $repl_item = getsinglereplicationitem
+        If (($repl_item.properties.testFailoverState) -ne "WaitingForCompletion") {
+            Write-Host "Protected item is not ready for test failover cleanup. Current state: $($repl_item.properties.testFailoverState)" -ForegroundColor Yellow
+            Write-Host "Exiting cleanup to avoid errors. Please run terst failover and try again when it is ready for cleanup." -ForegroundColor Yellow
+        } else {
+            cleanuptestfailover
+        }
     }
-    "4" {
-        Write-Host "Planned Failover..." -ForegroundColor Cyan
+    "202" {
+        Write-Host "Canceling Test Failover..." -ForegroundColor Cyan
+
+    }
+
+    "300" {
+        Write-Host "Running Failover..." -ForegroundColor Cyan
         getmigrationparams
+        plannedfailover
     }
-    "5" {
-        Write-Host "Cleaning up Planned Failover Job..." -ForegroundColor Cyan
-        getmigrationparams
+    "301" {
+        Write-Host "Cleaning up Failover..." -ForegroundColor Cyan
+
     }
-    "6" {
-        Write-Host "Cancel Planned Failover..." -ForegroundColor Cyan
+    "302" {
+        Write-Host "Canceling Failover..." -ForegroundColor Cyan
         getmigrationparams
         cancelfailover
     }
-    "7" {
+    "303" {
+        Write-Host "Committing Failover..." -ForegroundColor Cyan
+        getmigrationparams
+        commitfailover
+    }
+
+    "400" {
+        Write-Host "Getting all failover job data..." -ForegroundColor Cyan
+        getvault
+        getmigrationfailoverjobs
+    }
+    "401" {
+        Write-Host "Getting failover job data for a specific job..." -ForegroundColor Cyan
         $async_uri = Read-Host "Enter Azure-AsyncOperation URI to query status"
         $global:AsyncOperation = $async_uri
         $res = Invoke-AzRestMethod -Method GET -Uri "$($global:AsyncOperation)"
-        $res | Format-List
+        $res.StatusCode | Format-List
+        $res.Content | Format-List
     }
-    "8" {
-        Write-Host "Getting single replication item..." -ForegroundColor Cyan
-        getmigrationparams
-        getsinglereplicationitem
-    }
-    "9" {
-        Write-Host "Getting ServerSites..." -ForegroundColor Cyan
-        Write-Host "ServerReplication Sites: $(getmigrationserversites)"
-    }
-    "10" {
-        Write-Host "Getting VMWareSites..." -ForegroundColor Cyan
-        Write-Host "VMWareReplication Sites: $(getmigrationvmwaresites)"
-    }
-    "11" {
-        Write-Host "Getting HyperVSites..." -ForegroundColor Cyan
-        Write-Host "Hyper-V Replication Sites: $(getmigrationhypervsites)"
-    }
-    "12" {
-        Write-Host "Getting MasterSites..." -ForegroundColor Cyan
-        Write-Host "Master Replication Sites: $(getmigrationmastersites)"
-    }
-    "13" {
+
+    "800" { #Get All Replication Sites
         Write-Host "Getting all replication sites in a vault..." -ForegroundColor Cyan
         getmigrationserversites
         getmigrationvmwaresites
         getmigrationhypervsites
         getmigrationmastersites
-        
     }
-    "14" {
-        Write-Host "Listing recovery points for protected item..." -ForegroundColor Cyan
-        getmigrationparams
-        listrecoverypoints
+    "801" { #Get ServerSites
+        Write-Host "Getting ServerSites..." -ForegroundColor Cyan
+        Write-Host "ServerReplication Sites: $(getmigrationserversites)"
     }
-    "15" {
-        Write-Host "Committing Failover..." -ForegroundColor Cyan
-        getmigrationparams
-        commitfailover
+    "802" {
+        Write-Host "Getting VMWareSites..." -ForegroundColor Cyan
+        Write-Host "VMWareReplication Sites: $(getmigrationvmwaresites)"
     }
-    "993" {
-        Write-Host "Listing Replication Migration Items..." -ForegroundColor Cyan
-        getvault
-        getfabric
-        getprotectioncontainers
-        replicationMigrationItems
+    "803" {
+        Write-Host "Getting HyperVSites..." -ForegroundColor Cyan
+        Write-Host "Hyper-V Replication Sites: $(getmigrationhypervsites)"
     }
-    "994" {
-        Write-Host "Listing protectable items by replication protection container..." -ForegroundColor Cyan
-        getvault
-        getfabric
-        getprotectioncontainers
-        replicationProtectableItems
+    "804" {
+        Write-Host "Getting MasterSites..." -ForegroundColor Cyan
+        Write-Host "Master Replication Sites: $(getmigrationmastersites)"
     }
-    "20" {
+    "805" {
         getallsites
         selectsinglesite
         getrunasinsite -site_path $script:site.id
     }
-    "21" {
-        Write-Host "Getting ASR Appliances..." -ForegroundColor Cyan
-        getvault
-        getreplicationAppliance
-    }
-    "100" {
-        Write-Host "Enable Replication for Protected Item..." -ForegroundColor Cyan
-        getvault
-        getfabric
-        getprotectioncontainers
-        getunreplicateditems
-        enablereplication
-    }
-    "101" {
-        Write-Host "Disable Replication for Protected Item... (Not implemented yet)" -ForegroundColor Cyan
-        
-    }
-    "200" {
+    "806" {
         Write-Host "List the Discovered Machines in migration sites..." -ForegroundColor Cyan
         $site = getmigrationserversites
         if ($site.length -gt 0) {
@@ -751,14 +833,39 @@ switch ($choice) {
             getmachinesinsite -site_path $site.id
         }
     }
-    "201" {
+    "807" {
+        Write-Host "Get single runAs account in a site..." -ForegroundColor Cyan
+        getallsites
+        selectsinglesite
+        getsinglerunasaccountinsite -site_path $script:site.id
+    }
+    "990" {
+        Write-Host "Listing Recovery Services Vaults in the subscription..." -ForegroundColor Cyan
+        getvault
+    }
+    "991" {
+        Write-Host "Listing Fabrics in a vault..." -ForegroundColor Cyan
+        getvault
+        getfabric
+    }
+    "992" {
+        Write-Host "Listing Protection Containers in a vault..." -ForegroundColor Cyan
+        getvault
+        getfabric
+    }
+    "993" {
+        Write-Host "Listing Replication Migration Items..." -ForegroundColor Cyan
         getvault
         getfabric
         getprotectioncontainers
-        getpolicy
-        getallsites
-        selectsinglesite
-        enablereplication
+        replicationMigrationItems
+    }
+    "994" {
+        Write-Host "Listing protectable items by replication protection container..." -ForegroundColor Cyan
+        getvault
+        getfabric
+        getprotectioncontainers
+        replicationProtectableItems
     }
     "995" {
         Write-Host "replicationPolicies - (Replication Policies - List)" -ForegroundColor Cyan
