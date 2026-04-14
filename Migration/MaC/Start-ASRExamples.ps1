@@ -2,14 +2,13 @@
 #requires -Version 7 -module Az.RecoveryServices, Az.Accounts, Az.Network
 
 param (
-    [Parameter(Mandatory=$true)][string]$ResourceGroupName, # Resource group name where the Recovery Services vault/s are located
-    [Parameter(Mandatory=$true)][string]$SubscriptionId,    # Subscription ID of the project subscription, needed to find vault and construct API URIs
-    [Parameter(Mandatory=$false)][string]$VNetId,            #Full Virtual Network Id of the destination subnet in Azure, needed for agent-based migration failover
-    [Parameter(Mandatory=$false)][string]$SubnetName,
-    [Parameter(Mandatory=$false)][string]$runAsAccountId,
-    [Parameter(Mandatory=$false)][string]$targetResourceGroupId,
-    [Parameter(Mandatory=$false)][string]$targetBootDiagnosticsStorageAccountId,
-    [Parameter(Mandatory=$false)][string]$logStorageAccountId
+    [Parameter(Mandatory=$true)][string]$ResourceGroupName,         # Resource group name where the Recovery Services vault/s are located
+    [Parameter(Mandatory=$true)][string]$SubscriptionId,            # Subscription ID of the project subscription, needed to find vault and construct API URIs
+    [Parameter(Mandatory=$false)][string]$VNetId,                   # Full Virtual Network Id of the destination subnet in Azure, needed for agent-based migration failover
+    [Parameter(Mandatory=$false)][string]$SubnetName,               # Subnet name in the VNet, needed for agent-based migration failover
+    [Parameter(Mandatory=$false)][string]$targetResourceGroupId,    # Full resource group id of the target VM. Will be used for the test and manul failovers
+    [Parameter(Mandatory=$false)][string]$targetBootDiagnosticsStorageAccountId,    # Full storage account id for enabling boot diagnostics for the migrated VM
+    [Parameter(Mandatory=$false)][string]$logStorageAccountId       # Full storage account id for migration log
 )
 
 # Set global variable for failover Azure-AsyncOperation
@@ -25,18 +24,14 @@ $script:policy                  #Policy for enabling replication. This is the fu
 $script:run_as_account_id
 
 # These variables are used if you want to overwrite the PowerShell parameters for testing in the code editor with F8
-# Duplicate the next 8 lines and change the values if you want to hardcode the parameters for testing, otherwise it will use the parameters you input when running the script.
+# Duplicate the next 7 lines and change the values if you want to hardcode the parameters for testing, otherwise it will use the parameters you input when running the script.
 $sub_id = $SubscriptionId
 $rg = $ResourceGroupName
 $net_id = $VNetId
 $subnet_name = $SubnetName
-$script:run_as_account_id = $runAsAccountId
 $target_rg = $targetResourceGroupId
 $targetbootdiagstorage_id = $targetBootDiagnosticsStorageAccountId
 $logstorage_id = $logStorageAccountId
-
-
-
 
 # Check if user is logged in to Azure, if not prompt to login. This is needed to get an access token for the REST API calls
 if (Get-AzContext) {
@@ -44,7 +39,7 @@ if (Get-AzContext) {
     Write-host (Get-AzContext).Subscription.Name
 }
 else {
-    Write-Host "`nNot logged in to Azure. Please login."
+    Write-Host "`n`rNot logged in to Azure. Please login."
     Add-AzAccount
 }
 
@@ -90,6 +85,9 @@ function getstatus($Response) {
 }
 
 function getstatusloop($operation, $operation_uri, $finishing_message) {
+    # Loop through 300 seconds and write a period each second to the console
+    # Then check the status of the operation. Exit when the operation is Succeeded. Not sure of every status message available so may need to update later.
+    $i = 0
     do {
         for ($i = 0; $i -lt 300; $i++) {
             Write-Host "." -NoNewline
@@ -591,6 +589,8 @@ function resyncreplication {
 }
 
 function reprotect {
+    # Re-Protect replication for the selected protected item
+    Write-Host "Re-Protecting Replication for the selected protected item."
     $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
     $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationFabrics/$($script:fabric_name)/replicationProtectionContainers/$($script:container_name)/replicationProtectedItems/"
     $uri = $uri + "$($script:protected_item_name)/reProtect?api-version=2025-08-01"
@@ -604,6 +604,7 @@ function reprotect {
 }
 
 function getmachinesinsite($site_path) {
+    # Get machines in a site
     $uri = $site_path + "/machines?api-version=2023-06-06"
     Write-Host "getmachinesinsite URI: $uri"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
@@ -614,6 +615,7 @@ function getmachinesinsite($site_path) {
 }
 
 function getrunasinsite($site_path) {
+    # Get runas accounts for a site
     $uri = $site_path + "/runasAccounts?api-version=2020-01-01-preview"
     Write-Host "getrunasinsite URI: $uri"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
@@ -622,6 +624,7 @@ function getrunasinsite($site_path) {
 }
 
 function getsinglerunasaccountinsite($site_path) {
+    # Get single runas account in a site
     $uri = $site_path + "/runasAccounts?api-version=2020-01-01-preview"
     Write-Host "getrunasinsite URI: $uri"
     $res = Invoke-AzRestMethod -Method GET -Path $uri
@@ -700,6 +703,7 @@ Direct Azure REST API Call Examples
 ================================   Scroll up for more   =============================================================
 "@
 
+# Display menu and prompt for action
 Write-Host $menu
 $choice = Read-Host "Please select an option (1-999)"
 switch ($choice) {
@@ -757,28 +761,28 @@ switch ($choice) {
         }
     }
 
-    "300" {
+    "300" { #Run Failover
         Write-Host "Running Failover..." -ForegroundColor Cyan
         getmigrationparams
         plannedfailover
     }
-    "301" {
+    "301" { #Cancel Failover
         Write-Host "Canceling Failover..." -ForegroundColor Cyan
         getmigrationparams
         cancelfailover
     }
-    "302" {
+    "302" { #Commit Failover
         Write-Host "Committing Failover..." -ForegroundColor Cyan
         getmigrationparams
         commitfailover
     }
 
-    "400" {
+    "400" { #Get All Replication Jobs, past and present
         Write-Host "Getting all failover job data..." -ForegroundColor Cyan
         getvault
         getmigrationfailoverjobs
     }
-    "401" {
+    "401" { #Get single Azure-AsyncOperation status via URI.
         Write-Host "Getting failover job data for a specific job..." -ForegroundColor Cyan
         $async_uri = Read-Host "Enter Azure-AsyncOperation URI to query status"
         $global:AsyncOperation = $async_uri
@@ -798,24 +802,24 @@ switch ($choice) {
         Write-Host "Getting ServerSites..." -ForegroundColor Cyan
         Write-Host "ServerReplication Sites: $(getmigrationserversites)"
     }
-    "802" {
+    "802" { #Get VMWareSites
         Write-Host "Getting VMWareSites..." -ForegroundColor Cyan
         Write-Host "VMWareReplication Sites: $(getmigrationvmwaresites)"
     }
-    "803" {
+    "803" { #Get HyperVSites
         Write-Host "Getting HyperVSites..." -ForegroundColor Cyan
         Write-Host "Hyper-V Replication Sites: $(getmigrationhypervsites)"
     }
-    "804" {
+    "804" { #Get MasterSites
         Write-Host "Getting MasterSites..." -ForegroundColor Cyan
         Write-Host "Master Replication Sites: $(getmigrationmastersites)"
     }
-    "805" {
+    "805" { #Select a site and get the runAs accounts in that site
         getallsites
         selectsinglesite
         getrunasinsite -site_path $script:site.id
     }
-    "806" {
+    "806" { #Get a list of Machines in migration sites
         Write-Host "List the Discovered Machines in migration sites..." -ForegroundColor Cyan
         $site = getmigrationserversites
         if ($site.length -gt 0) {
@@ -837,61 +841,61 @@ switch ($choice) {
             getmachinesinsite -site_path $site.id
         }
     }
-    "807" {
+    "807" { #Get a single runAs account in a site
         Write-Host "Get single runAs account in a site..." -ForegroundColor Cyan
         getallsites
         selectsinglesite
         getsinglerunasaccountinsite -site_path $script:site.id
     }
-    "990" {
+    "990" { #Get a list of Recovery Services Vaults
         Write-Host "Listing Recovery Services Vaults in the subscription..." -ForegroundColor Cyan
         getvault
     }
-    "991" {
+    "991" { #Get a list of Replication Fabrics in a vault
         Write-Host "Listing Fabrics in a vault..." -ForegroundColor Cyan
         getvault
         getfabric
     }
-    "992" {
+    "992" { #Get a list of Replication Protection Containers in a vault
         Write-Host "Listing Protection Containers in a vault..." -ForegroundColor Cyan
         getvault
         getfabric
     }
-    "993" {
+    "993" { #Get a list of Replication Migration Items in a vault
         Write-Host "Listing Replication Migration Items..." -ForegroundColor Cyan
         getvault
         getfabric
         getprotectioncontainers
         replicationMigrationItems
     }
-    "994" {
+    "994" { #Get a list of Replication Protectable Items in a vault
         Write-Host "Listing protectable items by replication protection container..." -ForegroundColor Cyan
         getvault
         getfabric
         getprotectioncontainers
         replicationProtectableItems
     }
-    "995" {
+    "995" { #Get a list of Replication Policies in a vault
         Write-Host "replicationPolicies - (Replication Policies - List)" -ForegroundColor Cyan
         getvault
         replicationPolicies
     }
-    "996" {
+    "996" { #Get a list of Replication Events in a vault
         Write-Host "replicationEvents - (Replication Events - List)" -ForegroundColor Cyan
         getvault
         replicationEvents
     }
-    "997" {
+    "997" { #Get a list of Replication Alert Settings in a vault
         Write-Host "replicationAlertSettings - (Replication Alert Settings - List)" -ForegroundColor Cyan
         getvault
         replicationAlertSettings
     }
-    "998" {
+    "998" { #Get a list of Replication Appliances in a vault
         Write-Host "replicationAppliances - (Replication Appliances - List)" -ForegroundColor Cyan
         getvault
         replicationAppliances
     }
-    "999" {
+    "999" { #Exit
         Write-Host "Exiting..." -ForegroundColor Cyan
         exit
     }
