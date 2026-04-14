@@ -590,6 +590,19 @@ function resyncreplication {
     getstatus -Response $res
 }
 
+function reprotect {
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/"
+    $uri = $uri + "providers/Microsoft.RecoveryServices/vaults/$($script:vault_name)/replicationFabrics/$($script:fabric_name)/replicationProtectionContainers/$($script:container_name)/replicationProtectedItems/"
+    $uri = $uri + "$($script:protected_item_name)/reProtect?api-version=2025-08-01"
+    Write-Host "Resync-Replication URI: $uri"
+    $res = Invoke-AzRestMethod -Method POST -Path $uri -Payload $body
+    Write-Host "Resync Replication initiated for machine $($script:protected_item_name). Status code: $($res.StatusCode)."
+    $res
+
+    Start-Sleep -Seconds 60
+    getstatus -Response $res
+}
+
 function getmachinesinsite($site_path) {
     $uri = $site_path + "/machines?api-version=2023-06-06"
     Write-Host "getmachinesinsite URI: $uri"
@@ -641,18 +654,16 @@ Azure Migrate Replication Management PowerShell Examples
 100) Enable Replication
      101) Disable Replication
      102) Resyncrhonize Protected Item
-     x103) Re-Protect Protected Item            # Not implemented
-    104) Get Recovery Points for Protected Item
-    105) Get single replication item detailed information
+     103) Re-Protect Protected Item
+     104) Get Recovery Points for Protected Item
+     105) Get single replication item detailed information
 
 200) Run Test Failover
     201) Clean up Test Failover
-    x202) Cancel Test Failover                  # Not implemented
 
 300) Run Failover
-    x301) Clean up Failover                     # Not implemented
-    302) Cancel Failover
-    303) Commit Failover
+    301) Cancel Failover
+    302) Commit Failover
 
 ---------------------------------------------------------------------------------------------------------------------
 Replication Status Queries
@@ -716,6 +727,7 @@ switch ($choice) {
     "103" { #Re-Protecting Protected Item
         Write-Host "Re-Protecting Protected Item..." -ForegroundColor Cyan
         getmigrationparams
+        reprotect
     }
     "104" { #Getting Recovery Points for Protected Item
         Write-Host "Getting Recovery Points for Protected Item..." -ForegroundColor Cyan
@@ -744,10 +756,6 @@ switch ($choice) {
             cleanuptestfailover
         }
     }
-    "202" {
-        Write-Host "Canceling Test Failover..." -ForegroundColor Cyan
-
-    }
 
     "300" {
         Write-Host "Running Failover..." -ForegroundColor Cyan
@@ -755,15 +763,11 @@ switch ($choice) {
         plannedfailover
     }
     "301" {
-        Write-Host "Cleaning up Failover..." -ForegroundColor Cyan
-
-    }
-    "302" {
         Write-Host "Canceling Failover..." -ForegroundColor Cyan
         getmigrationparams
         cancelfailover
     }
-    "303" {
+    "302" {
         Write-Host "Committing Failover..." -ForegroundColor Cyan
         getmigrationparams
         commitfailover
