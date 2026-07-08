@@ -108,7 +108,22 @@ function getvault {
     $vault = ($res.Content | convertfrom-json).value
     $selectedObject = (selectchoice -Title "Select Recovery Services Vault" -Message "Which Recovery Services vault would you like to use?" -Objects $vault)
     $script:vault_name = ($selectedObject.name)
-    Write-Host "Vault Name: $($script:vault_name)"
+    return $selectedObject
+}
+
+function getvaultwithmigrateprojecttag($migrate_project_name) {
+    $uri = "/Subscriptions/$sub_id/resourceGroups/$rg/providers/Microsoft.RecoveryServices/vaults?api-version=2024-04-01"
+    $res = Invoke-AzRestMethod -Method GET -Path $uri
+    $vaults = ($res.Content | convertfrom-json).value
+    $vaults_with_project = @()
+    foreach ($vault in $vaults) {
+        foreach ($tag in $vault.tags) {
+            if ($tag."Migrate Project" -eq $migrate_project_name) {
+                $vaults_with_project += $vault
+            }
+        }
+    }
+    return $vaults_with_project
 }
 
 function getfabric {
@@ -118,7 +133,7 @@ function getfabric {
     $fabric = ($res.Content | convertfrom-json).value
     $selectedObject = (selectchoice -Title "Select Recovery Services Fabric" -Message "Which Recovery Services fabric would you like to use?" -Objects $fabric)
     $script:fabric_name = ($selectedObject.name)
-    Write-Host "Fabric Name: $($script:fabric_name)"
+    return $selectedObject
 }
 
 function getprotectioncontainers {
@@ -128,7 +143,7 @@ function getprotectioncontainers {
     $container = ($res.Content | convertfrom-json).value
     $selectedObject = (selectchoice -Title "Select Protection Container" -Message "Which Protection Container would you like to use?" -Objects $container)
     $script:container_name = ($selectedObject.name)
-    Write-Host "Protection Container Name: $($script:container_name)"
+    return $selectedObject
 }
 
 function getprotecteditems {
@@ -142,8 +157,7 @@ function getprotecteditems {
     $selectedObject = (selectchoice -Title "Select Protected Item" -Message "Which Protected Item would you like to use?" -Objects $protected_items)
     $script:protected_item_name = ($selectedObject.name)
 
-    #$protected_item_name = $protected_item.name
-    Write-Host "Protected Item Name: $($script:protected_item_name)"
+    return $selectedObject
 }
 
 function getpolicy {
@@ -153,7 +167,8 @@ function getpolicy {
     $policies = ($res.Content | convertfrom-json).value
     $selectedObject = (selectchoice -Title "Select Replication Policy" -Message "Which Replication Policy would you like to use?" -Objects $policies)
     $script:policy = ($selectedObject)
-    Write-Host "Selected Policy: $($script:policy)"
+
+    return $selectedObject
 }
 
 # Called by the failover functions to get all necessary parameters for the API calls. You can also run the individual get functions separately if you want to just get specific information or test the API calls without running a failover.
@@ -536,9 +551,9 @@ function enablereplication {
                     instanceType="InMageRcm"
                     fabricDiscoveryMachineId="$($machine_id)"
                     targetResourceGroupId="$($target_rg)"    #Get from script param
-                    targetNetworkId=$net_id
-                    targetSubnetName="$($subnet_name)"         #Get from script param
-                    testNetworkId=$net_id
+                    targetNetworkId=$net_id                 #If the target networkid is not provided. The failover will error. A network can be selected from the portal.
+                    targetSubnetName="$($subnet_name)"      #Get from script param
+                    testNetworkId=$net_id                   #If the target networkid is not provided. The failover will error. A network can be selected from the portal.
                     testSubnetName="$($subnet_name)"
                     targetVmName="$($machine_fixedname)"
                     targetVmSize=$null
@@ -675,6 +690,11 @@ Replication Status Queries
 401) Get single Azure-AsyncOperation status via URI. (Get in terminal with '`$global:AsyncOperation')
 
 ---------------------------------------------------------------------------------------------------------------------
+Custom Queries
+---------------------------------------------------------------------------------------------------------------------
+500) Get recovery vaults by migrate project tag. Prompt for migrate project name and return replication items with matching tag value.
+
+---------------------------------------------------------------------------------------------------------------------
 Replication Sites Queries
 ---------------------------------------------------------------------------------------------------------------------
 800) Get All Replication Sites
@@ -692,8 +712,8 @@ Direct Azure REST API Call Examples
 990) vaults - (Recovery Services Vaults - List)
 991) replicationFabrics - (Replication Fabrics - List By Recovery Services Vault)
 992) replicationProtectionContainers - (Replication Protection Containers - List By Replication Fabrics)
-993) replicationMigrationItems - (Replication Migration Items - List)
-994) replicationProtectableItems - (Replication Protectable Items - List By Replication Protection Containers)
+993) replicationMigrationItems - (Replication Migration Items - Agentless/VMWareCbt)
+994) replicationProtectableItems - (Replication Protectable Items - Agent-Based)
 995) replicationPolicies - (Replication Policies - List)
 996) replicationEvents - (Replication Events - List)
 997) replicationAlertSettings - (Replication Alert Settings - List)
@@ -791,6 +811,11 @@ switch ($choice) {
         $res.Content | Format-List
     }
 
+    "500" {
+        $migrate_project_name = Read-Host "Enter migrate project name"
+        getvaultwithmigrateprojecttag -migrate_project_name $migrate_project_name
+    }
+
     "800" { #Get All Replication Sites
         Write-Host "Getting all replication sites in a vault..." -ForegroundColor Cyan
         getmigrationserversites
@@ -800,7 +825,8 @@ switch ($choice) {
     }
     "801" { #Get ServerSites
         Write-Host "Getting ServerSites..." -ForegroundColor Cyan
-        Write-Host "ServerReplication Sites: $(getmigrationserversites)"
+        Write-Host "ServerReplication Sites:"
+        Write-Host $(getmigrationserversites) | Format-List *
     }
     "802" { #Get VMWareSites
         Write-Host "Getting VMWareSites..." -ForegroundColor Cyan
@@ -849,17 +875,20 @@ switch ($choice) {
     }
     "990" { #Get a list of Recovery Services Vaults
         Write-Host "Listing Recovery Services Vaults in the subscription..." -ForegroundColor Cyan
-        getvault
+        $vault = getvault
+        $vault | ConvertTo-Json -Depth 10
     }
     "991" { #Get a list of Replication Fabrics in a vault
         Write-Host "Listing Fabrics in a vault..." -ForegroundColor Cyan
         getvault
-        getfabric
+        $fabric = getfabric
+        $fabric | ConvertTo-Json -Depth 10
     }
     "992" { #Get a list of Replication Protection Containers in a vault
         Write-Host "Listing Protection Containers in a vault..." -ForegroundColor Cyan
         getvault
         getfabric
+        getprotectioncontainers
     }
     "993" { #Get a list of Replication Migration Items in a vault
         Write-Host "Listing Replication Migration Items..." -ForegroundColor Cyan
